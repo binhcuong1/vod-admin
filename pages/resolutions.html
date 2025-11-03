@@ -1,0 +1,47 @@
+<h1 class="h3 mb-4 text-gray-800">Quản lý độ phân giải</h1>
+
+<div class="card shadow mb-4">
+  <div class="card-header py-3 d-flex justify-content-between align-items-center">
+    <h6 class="m-0 font-weight-bold text-primary">Danh sách độ phân giải</h6>
+    <button class="btn btn-sm btn-primary" id="btnAdd"><i class="fas fa-plus"></i> Thêm</button>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-bordered" id="tblResolutions" width="100%">
+        <thead class="text-center">
+          <tr>
+            <th>ID</th>
+            <th>Loại độ phân giải</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="resolutionModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="resolutionForm">
+        <div class="modal-header">
+          <h5 class="modal-title">Độ phân giải</h5>
+          <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="Resolution_id" />
+          <div class="form-group">
+            <label>Loại độ phân giải</label>
+            <input class="form-control" id="Resolution_type" required />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" type="button" data-dismiss="modal">Hủy</button>
+          <button class="btn btn-primary" type="submit">Lưu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
