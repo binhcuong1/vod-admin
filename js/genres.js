@@ -107,9 +107,10 @@ async function reload(keyword = '') {
 
 // ================== Event Binding ==================
 function bindEvents() {
-    //  Giới hạn vùng chỉ trong phần Quản lý thể loại
+
     const section = document.querySelector('#tblGenres')?.closest('.card');
-    if (!section) return;
+  if (!section) return;
+
     // Thêm mới
     document.removeEventListener('click', onAddClick);
     document.addEventListener('click', onAddClick);
