@@ -1,0 +1,193 @@
+<style>
+    #Country_id,
+    #Country_id option {
+        color: #212529 !important;
+        background-color: #ffffff !important;
+    }
+</style>
+
+<!-- movies.html (FINAL, clean + fully closed) -->
+<h1 class="h3 mb-4 text-gray-800">Quản lý phim</h1>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">Danh sách phim</h6>
+        <div class="d-flex gap-2 align-items-center">
+            <input id="movieSearch" class="form-control form-control-sm mr-2" placeholder="Tìm theo tên...">
+            <button class="btn btn-sm btn-primary" id="btnAddMovie">
+                <i class="fas fa-plus"></i> Thêm
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered" id="tblMovies" width="100%">
+                <thead class="text-center">
+                    <tr>
+                        <th>ID</th>
+                        <th>Tên phim</th>
+                        <th>Năm</th>
+                        <th>Thời lượng</th>
+                        <th>Series?</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Thêm/Sửa phim -->
+<div class="modal fade" id="movieModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="movieForm">
+                <div class="modal-header">
+                    <h5 class="modal-title">Phim</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Đóng">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <input type="hidden" id="Movie_id">
+
+                    <!-- Row 1: Tên phim + Năm -->
+                    <div class="form-row">
+                        <div class="form-group col-lg-8">
+                            <label for="Movie_name">Tên phim</label>
+                            <input class="form-control" id="Movie_name" required>
+                        </div>
+                        <div class="form-group col-lg-4">
+                            <label for="Release_year">Năm phát hành</label>
+                            <input type="number" min="1900" max="2100" class="form-control" id="Release_year">
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Tên gốc + Thời lượng -->
+                    <div class="form-row">
+                        <div class="form-group col-lg-8">
+                            <label for="Original_name">Tên gốc</label>
+                            <input class="form-control" id="Original_name">
+                        </div>
+                        <div class="form-group col-lg-4">
+                            <label for="Duration">Thời lượng (phút)</label>
+                            <input type="number" min="1" class="form-control" id="Duration">
+                        </div>
+                    </div>
+
+                    <!-- Row 3: Mô tả -->
+                    <div class="form-row">
+                        <div class="form-group col-lg-12">
+                            <label for="Overview">Mô tả / Tóm tắt</label>
+                            <textarea class="form-control" id="Overview" rows="3"
+                                placeholder="Tóm tắt nội dung..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Row 4: Quốc gia + Độ tuổi -->
+                    <div class="form-row">
+                        <div class="form-group col-lg-6">
+                            <label for="Country_id">Quốc gia</label>
+                            <select id="Country_id" class="form-control bg-white text-dark"></select>
+                        </div>
+                        <div class="form-group col-lg-6">
+                            <label for="Maturity_rating">Giới hạn độ tuổi</label>
+                            <select id="Maturity_rating" class="form-control">
+                                <option value="">— Chọn —</option>
+                                <option value="G">G</option>
+                                <option value="PG">PG</option>
+                                <option value="PG-13">PG-13</option>
+                                <option value="R">R</option>
+                                <option value="NC-17">NC-17</option>
+                                <option value="16+">16+</option>
+                                <option value="18+">18+</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Row 5: Trạng thái + Trailer -->
+                    <div class="form-row">
+                        <div class="form-group col-lg-6">
+                            <label for="Film_status">Trạng thái phim</label>
+                            <select id="Film_status" class="form-control">
+                                <option value="">— Chọn —</option>
+                                <option value="đang chiếu">Đang chiếu</option>
+                                <option value="hoàn thành">Hoàn thành</option>
+                                <option value="sắp chiếu">Sắp chiếu</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-lg-6">
+                            <label for="Trailer_url">Trailer URL (YouTube)</label>
+                            <input class="form-control" id="Trailer_url" placeholder="https://youtu.be/...">
+                        </div>
+                    </div>
+
+                    <!-- Row 6: Checkbox -->
+                    <div class="form-row">
+                        <div class="form-group col-lg-3">
+                            <div class="form-check mt-1">
+                                <input class="form-check-input" type="checkbox" id="Is_series">
+                                <label class="form-check-label" for="Is_series">Là series</label>
+                            </div>
+                        </div>
+                        <div class="form-group col-lg-3">
+                            <div class="form-check mt-1">
+                                <input class="form-check-input" type="checkbox" id="Is_active" checked>
+                                <label class="form-check-label" for="Is_active">Đang hoạt động</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- (Tùy chọn) Series Block -->
+                    <div id="seriesBlock" class="mt-3" style="display:none">
+                        <hr>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <h6 class="mb-0">Seasons &amp; Episodes</h6>
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddSeason">
+                                    <i class="fas fa-layer-group"></i> Thêm mùa
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddEpisode"
+                                    disabled>
+                                    <i class="fas fa-list-ul"></i> Thêm tập (mùa đã chọn)
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-row mt-2">
+                            <div class="form-group col-5">
+                                <label for="seasonList">Danh sách mùa</label>
+                                <select id="seasonList" class="form-control form-control-sm"></select>
+                            </div>
+                            <div class="form-group col-7">
+                                <label>Tập của mùa</label>
+                                <div class="table-responsive" style="max-height:180px; overflow:auto">
+                                    <table class="table table-sm table-bordered mb-0">
+                                        <thead class="text-center">
+                                            <tr>
+                                                <th style="width:70px">#</th>
+                                                <th>Tên tập</th>
+                                                <th style="width:90px">Thời lượng</th>
+                                                <th style="width:90px">Thao tác</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="episodeBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- /seriesBlock -->
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" type="button" data-dismiss="modal">Hủy</button>
+                    <button class="btn btn-primary" type="submit">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
