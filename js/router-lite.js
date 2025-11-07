@@ -9,7 +9,7 @@ async function loadPartial(url, initKey, push = true) {
 
     // gọi init trang nếu có
     if (window.PageInits && typeof window.PageInits[initKey] === 'function') {
-        window.PageInits[initKey]();
+        setTimeout(() => window.PageInits[initKey](), 0);
     }
 
     // set active menu
