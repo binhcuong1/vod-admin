@@ -57,7 +57,14 @@
 
     // ===== Render Table =====
     function renderMovieRows(rows) {
-        const table = document.getElementById('tblMovies'); if (!table) return;
+        const table = document.getElementById('tblMovies');
+        if (!table) return;
+
+        // Destroy DataTable trước để tránh lỗi reinit
+        if (window.jQuery?.fn?.DataTable && window.jQuery.fn.DataTable.isDataTable('#tblMovies')) {
+            window.jQuery('#tblMovies').DataTable().clear().destroy();
+        }
+
         const tb = table.tBodies[0] || table.createTBody();
         tb.innerHTML = (rows || []).map(m => {
             const id = m.id ?? m.Film_id ?? '';
@@ -66,35 +73,46 @@
             const duration = m.duration ?? m.Duration ?? '';
             const isSeries = !!(m.isSeries ?? m.is_series);
             const active = !!(m.active ?? (m.is_deleted !== undefined ? !m.is_deleted : true));
+
             return `
-        <tr>
-          <td>${id}</td>
-          <td>${esc(name)}</td>
-          <td class="text-center">${year ?? ''}</td>
-          <td class="text-center">${duration ? (duration + 'p') : ''}</td>
-          <td class="text-center">${isSeries ? 'Yes' : 'No'}</td>
-          <td class="text-center">${active ? 'Yes' : 'No'}</td>
-          <td class="text-center">
-            <button class="btn btn-sm btn-info btn-edit-mv" data-id="${id}"><i class="fas fa-edit"></i></button>
-            <button class="btn btn-sm btn-danger btn-del-mv" data-id="${id}"><i class="fas fa-trash"></i></button>
-          </td>
-        </tr>`;
+      <tr>
+        <td>${id}</td>
+        <td>${esc(name)}</td>
+        <td class="text-center">${year || ''}</td>
+        <td class="text-center">${duration ? (duration + 'p') : ''}</td>
+        <td class="text-center">${isSeries ? 'Yes' : 'No'}</td>
+        <td class="text-center">${active ? 'Yes' : 'No'}</td>
+        <td class="text-center">
+          <button class="btn btn-sm btn-secondary btn-view-mv" data-id="${id}" title="Xem chi tiết">
+            <i class="fas fa-eye"></i>
+          </button>
+          <button class="btn btn-sm btn-info btn-edit-mv" data-id="${id}">
+            <i class="fas fa-edit"></i>
+          </button>
+          <button class="btn btn-sm btn-danger btn-del-mv" data-id="${id}">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      </tr>`;
         }).join('');
 
-        // rebind
-        qsa('.btn-edit-mv').forEach(b => b.onclick = () => openEdit(b.dataset.id));
-        qsa('.btn-del-mv').forEach(b => b.onclick = async () => {
+        tb.querySelectorAll('.btn-view-mv').forEach(b => b.onclick = () => openView(b.dataset.id));
+
+        // Rebind trong phạm vi tbody cho gọn
+        tb.querySelectorAll('.btn-edit-mv').forEach(b => b.onclick = () => openEdit(b.dataset.id));
+        tb.querySelectorAll('.btn-del-mv').forEach(b => b.onclick = async () => {
             if (!confirm('Xoá phim này?')) return;
             await mvDelete(b.dataset.id);
             await reloadMovies();
         });
+        tb.querySelectorAll('.btn-view-mv').forEach(b => b.onclick = () => openView(b.dataset.id));
 
+        // Khởi tạo lại DataTable sau khi đã render xong
         if (window.jQuery?.fn?.DataTable) {
-            const $tbl = window.jQuery('#tblMovies');
-            if (window.jQuery.fn.DataTable.isDataTable('#tblMovies')) $tbl.DataTable().clear().destroy();
-            setTimeout(() => $tbl.DataTable(), 0);
+            setTimeout(() => window.jQuery('#tblMovies').DataTable(), 0);
         }
     }
+
 
     // ===== Modal helpers =====
     function clearMovieForm() {
@@ -251,6 +269,149 @@
         await bindLookups();
         await reloadMovies();
     }
+
+    // === [Mini helpers - bỏ qua nếu bạn đã khai báo sẵn] ===
+    const FILM_DETAIL = (id) => `${API_BASE}/api/films/${id}/detail`;
+    async function mvGetDetail(id) {
+        const r = await axios.get(FILM_DETAIL(id));
+        return r.data?.data ?? r.data;
+    }
+
+    // === [B1] Render dữ liệu vào modal chi tiết ===
+    function renderDetail(d) {
+        if (!d) return;
+        const { film, info, genres, posters, sources, cast, seasons, has_series } = d;
+
+        // Header
+        qs('#mvDtlTitle').textContent = esc(film?.name ?? '');
+        const typeEl = qs('#mvDtlType');
+        if (typeEl) {
+            typeEl.textContent = film?.is_series ? 'Series' : 'Movie';
+            typeEl.className = 'ml-2 badge ' + (film?.is_series ? 'badge-warning' : 'badge-info');
+        }
+
+        // Info
+        qs('#mvDtlOriginal').textContent = esc(info?.original_name ?? '');
+        qs('#mvDtlYear').textContent = info?.release_year ?? '';
+        qs('#mvDtlDuration').textContent = info?.duration ? (info.duration + 'p') : '';
+        qs('#mvDtlRating').textContent = esc(info?.maturity_rating ?? '');
+        qs('#mvDtlCountry').textContent = esc(info?.country?.name ?? '');
+        const stEl = qs('#mvDtlStatus');
+        if (stEl) {
+            const st = String(info?.film_status || '').toLowerCase();
+            stEl.textContent = info?.film_status || '';
+            stEl.className = 'badge ' + (st.includes('đang') ? 'badge-success' : st.includes('sắp') ? 'badge-warning' : 'badge-secondary');
+        }
+        const trailerEl = qs('#mvDtlTrailer');
+        if (trailerEl) {
+            trailerEl.href = info?.trailer_url || '#';
+            trailerEl.style.pointerEvents = info?.trailer_url ? 'auto' : 'none';
+        }
+        qs('#mvDtlDesc').textContent = info?.description || '';
+
+        // Posters
+        const postersBox = qs('#mvDtlPosters');
+        if (postersBox) {
+            postersBox.innerHTML = (posters || []).map(p => `
+      <div class="mb-2">
+        <div class="small text-muted">PosterType #${p.postertype_id ?? ''}</div>
+        <img src="${esc(p.poster_url || '')}" class="img-fluid rounded shadow-sm"
+             onerror="this.style.display='none'">
+      </div>
+    `).join('') || '<div class="text-muted">Không có poster</div>';
+        }
+
+        // Genres
+        const gWrap = qs('#mvDtlGenres');
+        if (gWrap) {
+            gWrap.innerHTML = (genres || []).map(g =>
+                `<span class="badge badge-light mr-1 mb-1">${esc(g.name)}</span>`
+            ).join('') || '<span class="text-muted">—</span>';
+        }
+
+        // Sources (movie-level)
+        const sb = qs('#mvDtlSourceBody');
+        if (sb) {
+            sb.innerHTML = (sources || []).map(s => `
+      <tr>
+        <td class="text-center">${esc(s.resolution_type || (s.resolution_id ?? ''))}</td>
+        <td><a href="${esc(s.source_url || '#')}" target="_blank" rel="noopener">${esc(s.source_url || '')}</a></td>
+      </tr>
+    `).join('') || `<tr><td colspan="2" class="text-center text-muted">—</td></tr>`;
+        }
+
+        // Cast
+        const castBox = qs('#mvDtlCast');
+        if (castBox) {
+            castBox.innerHTML = (cast || []).map(c => `
+      <div class="badge badge-pill badge-secondary mr-1 mb-1">
+        ${esc(c.name)}${c.character_name ? ' <small class="text-light">as</small> ' + esc(c.character_name) : ''}
+      </div>
+    `).join('') || '<span class="text-muted">—</span>';
+        }
+
+        // Series (seasons/episodes)
+        const seriesWrap = qs('#mvDtlSeries');
+        const seasonsBox = qs('#mvDtlSeasons');
+        if (seriesWrap && seasonsBox) {
+            seriesWrap.style.display = has_series ? '' : 'none';
+            if (!has_series) {
+                seasonsBox.innerHTML = '';
+            } else {
+                seasonsBox.innerHTML = (seasons || []).map(s => `
+        <div class="card mb-2">
+          <div class="card-header py-2"><strong>${esc(s.name || ('Season ' + (s.number ?? '')))}</strong></div>
+          <div class="card-body p-2">
+            <div class="table-responsive">
+              <table class="table table-sm table-bordered mb-0">
+                <thead class="text-center">
+                  <tr><th style="width:70px">#</th><th>Tên tập</th><th style="width:100px">Thời lượng</th><th>Nguồn</th></tr>
+                </thead>
+                <tbody>
+                  ${(s.episodes || []).map(ep => `
+                    <tr>
+                      <td class="text-center">${ep.number ?? ''}</td>
+                      <td>${esc(ep.title || '')}</td>
+                      <td class="text-center">${ep.duration ? (ep.duration + 'p') : ''}</td>
+                      <td>
+                        ${(ep.sources || []).map(src =>
+                    `<div>${esc(src.resolution_type || (src.resolution_id ?? ''))}: 
+                            <a href="${esc(src.source_url || '#')}" target="_blank" rel="noopener">
+                              ${esc(src.source_url || '')}
+                            </a>
+                          </div>`
+                ).join('') || '—'}
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `).join('');
+            }
+        }
+    }
+
+    // === [B2] Lấy dữ liệu và mở modal ===
+    async function openView(id) {
+        try {
+            const data = await mvGetDetail(id);
+            renderDetail(data);
+            if (window.jQuery) {
+                window.jQuery('#movieDetailModal').modal('show');
+            } else {
+                // fallback nếu không dùng jQuery/Bootstrap
+                const el = qs('#movieDetailModal');
+                if (el) el.classList.remove('d-none');
+            }
+        } catch (err) {
+            console.error('[movies] view detail failed:', err);
+            alert('Không tải được chi tiết phim.');
+        }
+    }
+
 
     // Router will call this after injecting movies.html
     window.PageInits = window.PageInits || {}; window.PageInits.movies = init;
