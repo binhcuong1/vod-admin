@@ -107,6 +107,10 @@ async function reload(keyword = '') {
 
 // ================== Event Binding ==================
 function bindEvents() {
+
+    const section = document.querySelector('#tblGenres')?.closest('.card');
+  if (!section) return;
+
     // Thêm mới
     document.removeEventListener('click', onAddClick);
     document.addEventListener('click', onAddClick);
