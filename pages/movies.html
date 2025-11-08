@@ -108,6 +108,45 @@
                         </div>
                     </div>
 
+                    <!-- Row 4.5: Thể loại + Diễn viên (nhiều lựa chọn) -->
+                    <div class="form-row">
+                        <!-- Thể loại: checkbox list + selected chips -->
+                        <div class="form-group" id="GenresGroup">
+                            <label>Thể loại</label>
+                            <div id="Genre_list" class="border rounded p-2" style="max-height:220px; overflow:auto;">
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted">Đã chọn:</small>
+                                <div id="Genre_selected" class="d-flex flex-wrap" style="gap:.25rem;"></div>
+                            </div>
+                        </div>
+                        <!-- Diễn viên: search + checkbox list + selected chips -->
+                        <div class="form-group col-lg-6" id="ActorsGroup">
+                            <label>Diễn viên</label>
+
+                            <!-- search box -->
+                            <div class="input-group mb-2">
+                                <input id="Actor_search" class="form-control form-control-sm"
+                                    placeholder="Tìm diễn viên...">
+                                <div class="input-group-append">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        id="Actor_clear">Xoá</button>
+                                </div>
+                            </div>
+
+                            <!-- danh sách checkbox -->
+                            <div id="Actor_list" class="border rounded p-2" style="max-height:220px; overflow:auto;">
+                            </div>
+
+                            <!-- chips các diễn viên đã chọn -->
+                            <div class="mt-2">
+                                <small class="text-muted">Đã chọn:</small>
+                                <div id="Actor_selected" class="d-flex flex-wrap" style="gap:.25rem;"></div>
+                            </div>
+                        </div>
+
+                    </div>
+
                     <!-- Row 5: Trạng thái + Trailer -->
                     <div class="form-row">
                         <div class="form-group col-lg-6">
