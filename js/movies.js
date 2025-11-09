@@ -318,11 +318,18 @@
             },
         };
 
-        // Chỉ thêm các mảng nếu trên form có control (tránh lỗi khi bạn chưa dùng):
-        const gEl = qs("#Genre_ids");
-        if (gEl) payload.genre_ids = getMultiValues(gEl).map(Number);
-
-        const actorIds = getSelectedActorIds();
+        // --- Genres ---
+        let genreIds = [];
+        if (typeof getSelectedGenreIds === 'function') {
+            genreIds = getSelectedGenreIds();               // lấy từ checkbox .genre-cb
+        } else {
+            const gEl = qs('#Genre_ids');                   // fallback: nếu còn select multiple
+            if (gEl) genreIds = getMultiValues(gEl).map(Number);
+        }
+        if (genreIds.length) payload.genre_ids = genreIds;
+        
+        // --- Actors (checkbox) ---
+        const actorIds = (typeof getSelectedActorIds === 'function') ? getSelectedActorIds() : [];
         if (actorIds.length) payload.cast_ids = actorIds;
 
         // posters/sources: chưa có UI trong modal này, để trống; khi bạn thêm input riêng thì push vào payload
