@@ -7,11 +7,13 @@
     // ===== Basic DOM helpers =====
     const qs = (sel, root = document) => root.querySelector(sel);
     const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+    let _isEdit = false;
 
     // ===== Config / Endpoints =====
     const API_BASE = window.API_BASE || "http://localhost:3000";
     const FILMS = () => `${API_BASE}/api/films`;
     const FILM = (id) => `${API_BASE}/api/films/${id}`;
+    const FILM_BY_ID = (id) => `${API_BASE}/api/films/${id}`;
     const GENRES = () => `${API_BASE}/api/genres`;
     const COUNTRIES = () => `${API_BASE}/api/countries`;
     const ACTORS = () => `${API_BASE}/api/actors`;
@@ -20,8 +22,31 @@
 
     const ACTOR_SEARCH = (kw) => `${API_BASE}/api/actors/search?keyword=${encodeURIComponent(kw || '')}`;
 
+    async function mvGetById(id) {
+        const r = await axios.get(FILM_DETAIL(id));
+        const d = r.data?.data ?? r.data ?? {};
+
+        return {
+            Film_id: d.film?.id,
+            Film_name: d.film?.name,
+            is_series: d.film?.is_series,
+
+            Original_name: d.info?.original_name ?? '',
+            Description: d.info?.description ?? '',
+            Release_year: d.info?.release_year ?? '',
+            Duration: d.info?.duration ?? '',   // có thể là chuỗi
+            Country_id: d.info?.country?.id ?? null,
+            maturity_rating: d.info?.maturity_rating ?? '',
+            film_status: d.info?.film_status ?? '',
+            trailer_url: d.info?.trailer_url ?? '',
+
+            genre_ids: (d.genres || []).map(g => g.id),
+            cast_ids: (d.cast || []).map(a => a.actor_id),
+        };
+    }
+
     // Seasons/Episodes (optional)
-    const SEASONS = (movieId) => `${API_BASE}/api/movies/${movieId}/seasons`;
+    const SEASONS = (movieId) => `${API_BASE}/api/films/${movieId}/seasons`;
     const EPISODES = (seasonId) => `${API_BASE}/api/seasons/${seasonId}/episodes`;
 
     // ===== Utils =====
@@ -108,17 +133,32 @@
 
     // Seasons/Episodes
     async function seList(mid) {
-        const r = await axios.get(SEASONS(mid));
-        return r.data?.data ?? r.data ?? [];
+        try {
+            const r = await axios.get(SEASONS(mid));
+            const rows = r.data?.data ?? r.data ?? [];
+            // normalize -> {id,name,number}
+            return (rows || []).map(s => ({
+                id: s.id ?? s.Season_id ?? s.season_id,
+                name: s.name ?? s.Season_name ?? s.season_name ?? `Season ${s.number ?? ''}`,
+                number: s.number ?? s.Season_number ?? s.season_number ?? null,
+            }));
+        } catch (e) {
+            console.warn('[movies] seList failed:', e?.message || e);
+            return [];
+        }
     }
-    async function seCreate(mid, p) {
-        const r = await axios.post(SEASONS(mid), p);
-        return r.data;
-    }
+
     async function epList(sid) {
         const r = await axios.get(EPISODES(sid));
-        return r.data?.data ?? r.data ?? [];
+        const rows = r.data?.data ?? r.data ?? [];
+        return (rows || []).map(e => ({
+            id: e.id ?? e.Episode_id ?? e.episode_id,
+            number: e.number ?? e.Episode_number ?? e.episode_number,
+            title: e.title ?? e.Title ?? e.episode_title ?? '',
+            duration: e.duration ?? e.Duration ?? e.episode_duration ?? null,
+        }));
     }
+
     async function epCreate(sid, p) {
         const r = await axios.post(EPISODES(sid), p);
         return r.data;
@@ -239,56 +279,104 @@
         if (isActive) isActive.checked = true;
         const seriesBlock = qs("#seriesBlock");
         if (seriesBlock) seriesBlock.style.display = "none";
+        const seriesNote = qs("#seriesAddNote");
+        if (seriesNote) seriesNote.classList.add("d-none");
     }
 
-    function fillForm(m) {
-        qs("#Movie_id").value = m.id ?? m.Film_id ?? "";
-        qs("#Movie_name").value = m.name ?? m.Film_name ?? "";
-        qs("#Slug").value = m.slug ?? "";
-        qs("#Overview").value = m.overview ?? m.description ?? "";
-        qs("#Release_year").value = m.year ?? m.Release_year ?? "";
-        qs("#Duration").value = m.duration ?? m.Duration ?? "";
-        qs("#Poster_url").value = m.poster_url ?? "";
-        qs("#Backdrop_url").value = m.backdrop_url ?? "";
-        qs("#Trailer_url").value = m.trailer_url ?? "";
-        qs("#Language").value = m.language ?? "";
-        qs("#Is_series").checked = !!(m.isSeries ?? m.is_series);
-        qs("#Is_active").checked = !!(
-            m.active ?? (m.is_deleted !== undefined ? !m.is_deleted : true)
-        );
-        if (m.country_id && qs("#Country_id"))
-            qs("#Country_id").value = String(m.country_id);
-        if (Array.isArray(m.genre_ids)) selectValues("#Genre_ids", m.genre_ids);
-        if (Array.isArray(m.cast_ids)) selectValues("#Cast_ids", m.cast_ids);
-        if (Array.isArray(m.director_ids))
-            selectValues("#Director_ids", m.director_ids);
-        if (Array.isArray(m.cast_ids)) setCheckedActorIds(m.cast_ids);
+    function fillForm(m = {}) {
+        // id & cơ bản
+        setVal('#Movie_id', m.Film_id ?? m.id ?? '');
+        setVal('#Movie_name', m.Film_name ?? m.name ?? '');
+        setChecked('#Is_series', !!(m.is_series ?? m.isSeries));
+
+        // info
+        setVal('#Original_name', m.Original_name ?? m.original_name ?? '');
+        setVal('#Overview', m.Description ?? m.description ?? '');
+        setVal('#Release_year', m.Release_year ?? m.release_year ?? '');
+        // DB mới Duration có thể là chuỗi → đừng + 'p' ở đây
+        setVal('#Duration', m.Duration ?? m.duration ?? '');
+        setVal('#Maturity_rating', m.maturity_rating ?? m.Maturity_rating ?? '');
+        setVal('#Film_status', m.film_status ?? m.Film_status ?? '');
+        setVal('#Trailer_url', m.trailer_url ?? m.Trailer_url ?? '');
+        selectIf('#Country_id', m.Country_id ?? m.country_id);
+
+        // genres
+        if (Array.isArray(m.genre_ids)) {
+            if (typeof setCheckedGenreIds === 'function') {
+                setCheckedGenreIds(m.genre_ids);            // checkbox flow
+            } else {
+                // fallback nếu vẫn còn <select multiple>
+                if (typeof selectValues === 'function') selectValues('#Genre_ids', m.genre_ids);
+            }
+        }
+
+        // actors
+        if (Array.isArray(m.cast_ids)) {
+            if (typeof setCheckedActorIds === 'function') {
+                setCheckedActorIds(m.cast_ids);             // checkbox + chips
+            } else {
+                if (typeof selectValues === 'function') selectValues('#Cast_ids', m.cast_ids);
+            }
+        }
     }
+
 
     function toggleSeries(show) {
-        const blk = qs("#seriesBlock");
-        if (blk) blk.style.display = show ? "" : "none";
+        const blk = qs("#seriesBlock");    // khung thao tác mùa/tập
+        const note = qs("#seriesAddNote");  // thông báo ở chế độ Thêm
+
+        if (_isEdit) {
+            // Chế độ SỬA: cho phép hiện/ẩn khung thao tác mùa/tập theo checkbox
+            if (blk) blk.style.display = show ? "" : "none";
+            if (note) note.classList.add("d-none");
+        } else {
+            // Chế độ THÊM: luôn ẩn khung thao tác; nếu có tick -> chỉ hiện NOTE
+            if (blk) blk.style.display = "none";
+            if (note) note.classList.toggle("d-none", !show);
+        }
     }
 
     // ===== Open modal =====
     async function openAdd() {
+        _isEdit = false;
         clearMovieForm();
-        toggleSeries(false);
-        if (window.jQuery) window.jQuery("#movieModal").modal("show");
-        else qs("#movieModal")?.classList.remove("d-none");
-    }
-    async function openEdit(id) {
-        clearMovieForm();
-        const m = await mvGet(id);
-        fillForm(m);
-        toggleSeries(qs("#Is_series").checked);
+        toggleSeries(!!qs("#Is_series")?.checked);  // ẩn khung, chỉ hiện note nếu tick
         if (window.jQuery) window.jQuery("#movieModal").modal("show");
         else qs("#movieModal")?.classList.remove("d-none");
     }
 
+    async function openEdit(id) {
+        try {
+            _isEdit = true;
+            await bindLookups();
+            const m = await mvGetById(id);   // đang dùng /api/films/:id/detail
+            fillForm(m);
+            toggleSeries(!!m.is_series);     // SỬA: hiện khối nếu là series
+
+            if (m.is_series) {
+                const seasons = await seList(id);
+                renderSeasonOptions(seasons);
+                const sid = qs("#seasonList")?.value;
+                if (sid) {
+                    const eps = await epList(sid);
+                    renderEpisodes(eps);
+                }
+            }
+
+            if (window.jQuery) $('#movieModal').modal('show');
+        } catch (e) {
+            console.error(e); alert('Không mở được form sửa.');
+        }
+    }
+
+
+
     // ===== Submit =====
     async function onSubmit(e) {
         e.preventDefault();
+
+        // Chỉ xử lý khi bấm nút Lưu
+        if (e.submitter && e.submitter.id !== 'btnSaveMovie') return;
 
         const id = qs("#Movie_id")?.value?.trim() || "";
         const film_name = qs("#Movie_name")?.value?.trim() || "";
@@ -302,45 +390,25 @@
             film_info: {
                 original_name: qs("#Original_name")?.value?.trim() || null,
                 description: qs("#Overview")?.value?.trim() || null,
-                release_year: qs("#Release_year")?.value
-                    ? Number(qs("#Release_year").value)
-                    : null,
+                release_year: qs("#Release_year")?.value ? Number(qs("#Release_year").value) : null,
                 duration: qs("#Duration")?.value ? Number(qs("#Duration").value) : null,
-                country_id: qs("#Country_id")?.value
-                    ? Number(qs("#Country_id").value)
-                    : null,
+                country_id: qs("#Country_id")?.value ? Number(qs("#Country_id").value) : null,
                 maturity_rating: qs("#Maturity_rating")?.value || null,
-                film_status: qs("#Film_status")?.value || null, // "đang chiếu" | "hoàn thành" | "sắp chiếu"
+                film_status: qs("#Film_status")?.value || null,
                 trailer_url: qs("#Trailer_url")?.value?.trim() || null,
-                // nếu đang là series và sau này có input riêng cho tiến độ/tổng tập thì đọc vào; hiện tại để 0
                 process_episode: 0,
                 total_episode: 0,
             },
         };
 
-        // --- Genres ---
-        let genreIds = [];
-        if (typeof getSelectedGenreIds === 'function') {
-            genreIds = getSelectedGenreIds();               // lấy từ checkbox .genre-cb
-        } else {
-            const gEl = qs('#Genre_ids');                   // fallback: nếu còn select multiple
-            if (gEl) genreIds = getMultiValues(gEl).map(Number);
-        }
-        if (genreIds.length) payload.genre_ids = genreIds;
-        
-        // --- Actors (checkbox) ---
-        const actorIds = (typeof getSelectedActorIds === 'function') ? getSelectedActorIds() : [];
-        if (actorIds.length) payload.cast_ids = actorIds;
-
-        // posters/sources: chưa có UI trong modal này, để trống; khi bạn thêm input riêng thì push vào payload
+        // gửi kèm key 'info' đề phòng BE đang đọc theo tên này
+        payload.info = payload.film_info;
 
         try {
             if (id) await mvUpdate(id, payload);
             else await mvCreate(payload);
-
             if (window.jQuery) window.jQuery("#movieModal").modal("hide");
             else qs("#movieModal")?.classList.add("d-none");
-
             await reloadMovies();
         } catch (err) {
             console.error("[movies] create/update failed:", err);
@@ -348,68 +416,63 @@
         }
     }
 
+
     // ===== Seasons UI =====
     function renderSeasonOptions(seasons) {
         const sel = qs("#seasonList");
         if (!sel) return;
         sel.innerHTML = (seasons || [])
-            .map(
-                (s) =>
-                    `<option value="${s.id}">${esc(
-                        s.name || "Season " + s.number
-                    )}</option>`
-            )
+            .map(s => `<option value="${s.id}">${esc(s.name || ('Season ' + (s.number ?? '')))}</option>`)
             .join("");
         const btnEp = qs("#btnAddEpisode");
         if (btnEp) btnEp.disabled = !sel.value;
     }
+
     function renderEpisodes(episodes) {
         const tb = qs("#episodeBody");
         if (!tb) return;
-        tb.innerHTML = (episodes || [])
-            .map(
-                (e, i) => `
-      <tr>
-        <td class="text-center">${e.number ?? i + 1}</td>
-        <td>${esc(e.title || "")}</td>
-        <td class="text-center">${e.duration ? e.duration + "p" : ""}</td>
-        <td class="text-center">
-          <button class="btn btn-xs btn-info btn-edit-ep" data-ep="${e.id
-                    }"><i class="fas fa-edit"></i></button>
-          <button class="btn btn-xs btn-danger btn-del-ep" data-ep="${e.id
-                    }"><i class="fas fa-trash"></i></button>
-        </td>
-      </tr>`
-            )
-            .join("");
-        qsa(".btn-del-ep").forEach(
-            (btn) =>
-            (btn.onclick = async () => {
-                if (!confirm("Xoá tập này?")) return;
-                await epDelete(btn.dataset.ep);
-                const sid = qs("#seasonList")?.value;
-                if (sid) {
-                    const eps = await epList(sid);
-                    renderEpisodes(eps);
-                }
-            })
-        );
-        qsa(".btn-edit-ep").forEach(
-            (btn) =>
-            (btn.onclick = async () => {
-                const ep = btn.dataset.ep;
-                const title = prompt("Tên tập mới:");
-                if (title == null) return;
-                const d = prompt("Thời lượng (phút):");
-                await epUpdate(ep, { title, duration: d ? Number(d) : null });
-                const sid = qs("#seasonList")?.value;
-                if (sid) {
-                    const eps = await epList(sid);
-                    renderEpisodes(eps);
-                }
-            })
-        );
+
+        tb.innerHTML = (episodes || []).map((e, i) => `
+        <tr>
+          <td class="text-center">${e.number ?? (i + 1)}</td>
+          <td>${esc(e.title || "")}</td>
+          <td class="text-center">${e.duration ? (e.duration + "p") : ""}</td>
+          <td class="text-center">
+            <button type="button" class="btn btn-xs btn-info btn-edit-ep" data-ep="${e.id}">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button type="button" class="btn btn-xs btn-danger btn-del-ep" data-ep="${e.id}">
+              <i class="fas fa-trash"></i>
+            </button>
+          </td>
+        </tr>`).join("");
+
+
+        // Delete
+        qsa(".btn-del-ep").forEach(btn => btn.onclick = async (ev) => {
+            ev.preventDefault(); ev.stopPropagation();
+            const eid = btn.dataset.ep;
+            if (!eid) return alert("Không tìm thấy ID tập.");
+            if (!confirm("Xoá tập này?")) return;
+            await epDelete(eid);
+            const sid = qs("#seasonList")?.value;
+            if (sid) renderEpisodes(await epList(sid));
+        });
+
+        // Edit
+        qsa(".btn-edit-ep").forEach(btn => btn.onclick = async (ev) => {
+            ev.preventDefault(); ev.stopPropagation();
+            const eid = btn.dataset.ep;
+            if (!eid) return alert("Không tìm thấy ID tập.");
+            const title = prompt("Tên tập mới:");
+            if (title == null) return;
+            const d = prompt("Thời lượng (phút):");
+            await epUpdate(eid, { title, duration: d ? Number(d) : null });
+            const sid = qs("#seasonList")?.value;
+            if (sid) renderEpisodes(await epList(sid));
+        });
     }
+
 
     // ===== Page wiring =====
     async function bindLookups() {
@@ -581,6 +644,16 @@
                 }
             };
         }
+
+        async function seCreate(mid, p) {
+            const body = {
+                name: p?.name ?? p?.season_name ?? 'Season 1',
+                season_name: p?.season_name ?? p?.name ?? 'Season 1'
+            };
+            const r = await axios.post(SEASONS(mid), body);
+            return r.data;
+        }
+
         const btnAddEpisode = qs("#btnAddEpisode");
         if (btnAddEpisode) {
             btnAddEpisode.onclick = async () => {
@@ -852,5 +925,20 @@
         box.innerHTML = ids.map(id => `<span class="badge badge-info mr-1 mb-1">${esc(dict[String(id)] ?? id)}</span>`).join('');
     }
 
+    function setVal(sel, v) {
+        const el = qs(sel);
+        if (!el) { console.warn('[fillForm] missing', sel); return; }
+        el.value = v ?? '';
+    }
+    function setChecked(sel, v) {
+        const el = qs(sel);
+        if (!el) { console.warn('[fillForm] missing', sel); return; }
+        el.checked = !!v;
+    }
+    function selectIf(sel, v) { // cho <select>
+        const el = qs(sel);
+        if (!el) { console.warn('[fillForm] missing', sel); return; }
+        if (v !== undefined && v !== null) el.value = String(v);
+    }
 
 })();

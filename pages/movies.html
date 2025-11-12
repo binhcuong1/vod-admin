@@ -178,6 +178,10 @@
                                 <label class="form-check-label" for="Is_active">Đang hoạt động</label>
                             </div>
                         </div>
+                        <div id="seriesAddNote" class="alert alert-warning py-2 px-3 small d-none">
+                            Bạn đã chọn <strong>Là series</strong>. Hãy <strong>Lưu</strong> phim trước,
+                            sau đó vào <strong>Sửa phim</strong> để cài đặt <em>Seasons &amp; Episodes</em>.
+                        </div>
                     </div>
 
                     <!-- (Tùy chọn) Series Block -->
@@ -224,7 +228,7 @@
 
                 <div class="modal-footer">
                     <button class="btn btn-secondary" type="button" data-dismiss="modal">Hủy</button>
-                    <button class="btn btn-primary" type="submit">Lưu</button>
+                    <button class="btn btn-primary" id="btnSaveMovie" type="submit">Lưu</button>
                 </div>
             </form>
         </div>
