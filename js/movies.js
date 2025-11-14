@@ -20,6 +20,18 @@
     const PEOPLE = (role) =>
         `${API_BASE}/api/people?role=${encodeURIComponent(role || "")}`; // actor|director
 
+    // Sources endpoints
+    const FILM_SOURCES = (filmId) => `${API_BASE}/api/films/${filmId}/sources`;
+    const EPISODE_SOURCES = (epId) => `${API_BASE}/api/episodes/${epId}/sources`;
+
+    const RESOLUTIONS = [
+        { id: 1, label: '360p' },
+        { id: 2, label: '480p' },
+        { id: 3, label: '720p' },
+        { id: 4, label: '1080p' },
+        // { id: 5, label: '4K' },
+    ];
+
     const ACTOR_SEARCH = (kw) => `${API_BASE}/api/actors/search?keyword=${encodeURIComponent(kw || '')}`;
 
     async function mvGetById(id) {
@@ -322,52 +334,77 @@
 
 
     function toggleSeries(show) {
-        const blk = qs("#seriesBlock");    // khung thao tác mùa/tập
-        const note = qs("#seriesAddNote");  // thông báo ở chế độ Thêm
+        const blk = qs("#seriesBlock");          // khối Seasons & Episodes trong form
+        const note = qs("#seriesAddNote");       // dòng hướng dẫn “tick Là series…”
+        const mvSrcBlk = qs("#movieSourcesBlock"); // khối Nguồn phát (Movie)
 
         if (_isEdit) {
-            // Chế độ SỬA: cho phép hiện/ẩn khung thao tác mùa/tập theo checkbox
+            // Khi ĐANG SỬA
+            // show = true  -> phim bộ: hiện khối season, ẩn movie sources
+            // show = false -> phim lẻ: ẩn khối season, hiện movie sources
             if (blk) blk.style.display = show ? "" : "none";
+            if (mvSrcBlk) mvSrcBlk.style.display = show ? "none" : "";
             if (note) note.classList.add("d-none");
         } else {
-            // Chế độ THÊM: luôn ẩn khung thao tác; nếu có tick -> chỉ hiện NOTE
-            if (blk) blk.style.display = "none";
+            // Khi THÊM MỚI
+            if (blk) blk.style.display = "none";          // chưa cho tạo season ở bước này
+            if (mvSrcBlk) mvSrcBlk.style.display = "none"; // luôn ẩn movie sources khi thêm
             if (note) note.classList.toggle("d-none", !show);
         }
     }
 
+
+
     // ===== Open modal =====
-    async function openAdd() {
+    function openAdd() {
         _isEdit = false;
         clearMovieForm();
-        toggleSeries(!!qs("#Is_series")?.checked);  // ẩn khung, chỉ hiện note nếu tick
+
+        // bỏ tick Là series mặc định
+        const chk = qs("#Is_series");
+        if (chk) chk.checked = false;
+
+        toggleSeries(false); // phim mới: xem như không phải series, nhưng ở nhánh _isEdit=false nên sẽ ẩn cả 2 khối
+
         if (window.jQuery) window.jQuery("#movieModal").modal("show");
         else qs("#movieModal")?.classList.remove("d-none");
     }
 
+
+
     async function openEdit(id) {
         try {
             _isEdit = true;
-            await bindLookups();
-            const m = await mvGetById(id);   // đang dùng /api/films/:id/detail
-            fillForm(m);
-            toggleSeries(!!m.is_series);     // SỬA: hiện khối nếu là series
+            await bindLookups();            // load quốc gia, thể loại, diễn viên
 
+            const m = await mvGetById(id);  // lấy data phim + info + genres + cast
+            fillForm(m);                    // đổ lên form
+
+            // Cập nhật UI: series / movie + movie sources block
+            toggleSeries(!!m.is_series);
+
+            // Nếu là phim lẻ -> load nguồn phát (Movie)
+            if (!m.is_series && typeof getFilmSources === "function") {
+                await getFilmSources(id);
+            }
+
+            if (window.jQuery) window.jQuery("#movieModal").modal("show");
+            else qs("#movieModal")?.classList.remove("d-none");
+
+            // Nếu là series -> load seasons & episodes như cũ
             if (m.is_series) {
                 const seasons = await seList(id);
                 renderSeasonOptions(seasons);
                 const sid = qs("#seasonList")?.value;
-                if (sid) {
-                    const eps = await epList(sid);
-                    renderEpisodes(eps);
-                }
+                if (sid) renderEpisodes(await epList(sid));
             }
-
-            if (window.jQuery) $('#movieModal').modal('show');
-        } catch (e) {
-            console.error(e); alert('Không mở được form sửa.');
+        } catch (err) {
+            console.error("[movies] openEdit failed:", err);
+            alert("Không tải được dữ liệu phim để sửa.");
         }
     }
+
+
 
 
 
@@ -401,20 +438,43 @@
             },
         };
 
-        // gửi kèm key 'info' đề phòng BE đang đọc theo tên này
+        // ✳️ Gửi kèm info (phòng trường hợp BE đọc key này)
         payload.info = payload.film_info;
+
+        // ✳️ THỂ LOẠI
+        let genreIds = [];
+        if (typeof getSelectedGenreIds === "function") {
+            genreIds = getSelectedGenreIds();      // đọc từ checkbox .genre-cb
+        } else {
+            // fallback nếu còn dùng <select multiple>
+            const gEl = qs("#Genre_ids");
+            if (gEl) genreIds = getMultiValues(gEl).map(Number);
+        }
+        if (genreIds.length) payload.genre_ids = genreIds;
+
+        // ✳️ DIỄN VIÊN
+        let actorIds = [];
+        if (typeof getSelectedActorIds === "function") {
+            actorIds = getSelectedActorIds();      // đọc từ checkbox .actor-cb
+        }
+        if (actorIds.length) payload.cast_ids = actorIds;
+
+        console.log("payload gửi lên:", payload);
 
         try {
             if (id) await mvUpdate(id, payload);
             else await mvCreate(payload);
+
             if (window.jQuery) window.jQuery("#movieModal").modal("hide");
             else qs("#movieModal")?.classList.add("d-none");
+
             await reloadMovies();
         } catch (err) {
             console.error("[movies] create/update failed:", err);
             alert("Lưu phim thất bại. Mở Console để xem chi tiết lỗi.");
         }
     }
+
 
 
     // ===== Seasons UI =====
@@ -433,19 +493,22 @@
         if (!tb) return;
 
         tb.innerHTML = (episodes || []).map((e, i) => `
-        <tr>
-          <td class="text-center">${e.number ?? (i + 1)}</td>
-          <td>${esc(e.title || "")}</td>
-          <td class="text-center">${e.duration ? (e.duration + "p") : ""}</td>
-          <td class="text-center">
-            <button type="button" class="btn btn-xs btn-info btn-edit-ep" data-ep="${e.id}">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button type="button" class="btn btn-xs btn-danger btn-del-ep" data-ep="${e.id}">
-              <i class="fas fa-trash"></i>
-            </button>
-          </td>
-        </tr>`).join("");
+  <tr>
+    <td class="text-center">${e.number ?? (i + 1)}</td>
+    <td>${esc(e.title || "")}</td>
+    <td class="text-center">${e.duration ? (e.duration + "p") : ""}</td>
+    <td class="text-center">
+      <button type="button" class="btn btn-xs btn-secondary btn-ep-src" data-ep='${JSON.stringify({ id: e.id, number: e.number, title: e.title || '' })}'>
+        Src
+      </button>
+      <button type="button" class="btn btn-xs btn-info btn-edit-ep" data-ep="${e.id}">
+        <i class="fas fa-edit"></i>
+      </button>
+      <button type="button" class="btn btn-xs btn-danger btn-del-ep" data-ep="${e.id}">
+        <i class="fas fa-trash"></i>
+      </button>
+    </td>
+  </tr>`).join("");
 
 
         // Delete
@@ -471,6 +534,91 @@
             const sid = qs("#seasonList")?.value;
             if (sid) renderEpisodes(await epList(sid));
         });
+
+        // Episode Sources
+        qsa(".btn-ep-src").forEach(btn => btn.onclick = async (ev) => {
+            ev.preventDefault(); ev.stopPropagation();
+            const meta = btn.dataset.ep ? JSON.parse(btn.dataset.ep) : null;
+            if (!meta?.id) return alert("Không tìm thấy ID tập.");
+            await openEpSources(meta);
+
+            // gắn nút Lưu trong modal
+            const saveBtn = qs('#btnSaveEpSources');
+            if (saveBtn) {
+                saveBtn.onclick = async () => {
+                    await saveEpSources(meta.id);
+                    const sid = qs("#seasonList")?.value;
+                    if (sid) renderEpisodes(await epList(sid)); // refresh bảng tập
+                };
+            }
+        });
+    }
+
+    async function openEpSources(ep) { // ep: {id, number, title}
+        // hiển thị tiêu đề
+        const ttl = qs('#epSourceTitle');
+        if (ttl) ttl.textContent = `#${ep.number} ${ep.title || ''}`;
+
+        // load nguồn hiện tại
+        const r = await axios.get(EPISODE_SOURCES(ep.id));
+        const rows = r.data?.data ?? [];
+        const dict = Object.fromEntries(rows.map(x => [String(x.Resolution_id), x.Source_url || '']));
+
+        // render bảng
+        const tb = qs('#epSourceBody');
+        if (tb) {
+            tb.innerHTML = RESOLUTIONS.map(r => `
+      <tr>
+        <td class="text-center align-middle">${r.label}</td>
+        <td><input class="form-control form-control-sm ep-src-input" 
+                   data-res="${r.id}" placeholder="https://... (m3u8/mp4)" 
+                   value="${esc(dict[String(r.id)] || '')}"></td>
+      </tr>
+    `).join('');
+        }
+
+        if (window.jQuery) $('#epSourceModal').modal('show');
+    }
+
+    async function saveEpSources(epId) {
+        const inputs = qsa('.ep-src-input');
+        const sources = inputs
+            .map(i => ({ resolution_id: Number(i.dataset.res), source_url: i.value.trim() }))
+            .filter(x => x.source_url);
+        await axios.put(EPISODE_SOURCES(epId), { sources });
+        if (window.jQuery) $('#epSourceModal').modal('hide');
+        alert('Đã lưu nguồn phát của tập.');
+    }
+
+
+    async function getFilmSources(filmId) {
+        const r = await axios.get(FILM_SOURCES(filmId));
+        const rows = r.data?.data ?? [];
+        const dict = Object.fromEntries(rows.map(x => [String(x.Resolution_id), x.Source_url || ""]));
+
+        const tb = qs("#movieSourceBody");
+        if (!tb) return;
+        tb.innerHTML = RESOLUTIONS.map(r => `
+    <tr>
+      <td class="text-center align-middle">${r.label}</td>
+      <td>
+        <input class="form-control form-control-sm mv-src-input"
+               data-res="${r.id}"
+               placeholder="https://... (m3u8/mp4)"
+               value="${esc(dict[String(r.id)] || "")}">
+      </td>
+    </tr>
+  `).join("");
+    }
+
+
+    async function saveFilmSources(filmId) {
+        const inputs = qsa('.mv-src-input');
+        const sources = inputs
+            .map(i => ({ resolution_id: Number(i.dataset.res), source_url: i.value.trim() }))
+            .filter(x => x.source_url); // chỉ gửi những cái có URL
+        await axios.put(FILM_SOURCES(filmId), { sources });
+        alert('Đã lưu nguồn phát (Movie).');
     }
 
 
@@ -627,6 +775,16 @@
                 renderEpisodes(eps);
             };
         }
+
+        const btnSaveMovieSources = qs('#btnSaveMovieSources');
+        if (btnSaveMovieSources) {
+            btnSaveMovieSources.onclick = async () => {
+                const mid = qs("#Movie_id")?.value;
+                if (!mid) return alert("Chưa có ID phim.");
+                await saveFilmSources(mid);
+            };
+        }
+
         const btnAddSeason = qs("#btnAddSeason");
         if (btnAddSeason) {
             btnAddSeason.onclick = async () => {
@@ -799,8 +957,11 @@
         const seriesWrap = qs("#mvDtlSeries");
         const seasonsBox = qs("#mvDtlSeasons");
         if (seriesWrap && seasonsBox) {
-            seriesWrap.style.display = has_series ? "" : "none";
-            if (!has_series) {
+            // CHỈ hiện nếu phim là series
+            const showSeries = !!(film && film.is_series) && (seasons && seasons.length);
+            seriesWrap.style.display = showSeries ? "" : "none";
+
+            if (!showSeries) {
                 seasonsBox.innerHTML = "";
             } else {
                 seasonsBox.innerHTML = (seasons || [])
@@ -814,7 +975,12 @@
             <div class="table-responsive">
               <table class="table table-sm table-bordered mb-0">
                 <thead class="text-center">
-                  <tr><th style="width:70px">#</th><th>Tên tập</th><th style="width:100px">Thời lượng</th><th>Nguồn</th></tr>
+                  <tr>
+                    <th style="width:70px">#</th>
+                    <th>Tên tập</th>
+                    <th style="width:100px">Thời lượng</th>
+                    <th>Nguồn</th>
+                  </tr>
                 </thead>
                 <tbody>
                   ${(s.episodes || [])
@@ -823,40 +989,34 @@
                     <tr>
                       <td class="text-center">${ep.number ?? ""}</td>
                       <td>${esc(ep.title || "")}</td>
-                      <td class="text-center">${ep.duration ? ep.duration + "p" : ""
-                                        }</td>
+                      <td class="text-center">${ep.duration ? ep.duration + "p" : ""}</td>
                       <td>
                         ${(ep.sources || [])
                                             .map(
-                                                (src) =>
-                                                    `<div>${esc(
-                                                        src.resolution_type ||
-                                                        (src.resolution_id ?? "")
-                                                    )}: 
-                            <a href="${esc(
-                                                        src.source_url || "#"
-                                                    )}" target="_blank" rel="noopener">
-                              ${esc(src.source_url || "")}
-                            </a>
-                          </div>`
+                                                (src) => `
+                              <div>
+                                ${esc(src.resolution_type || (src.resolution_id ?? ""))}: 
+                                <a href="${esc(src.source_url || "#")}"
+                                   target="_blank" rel="noopener">
+                                  ${esc(src.source_url || "")}
+                                </a>
+                              </div>`
                                             )
-                                            .join("") || "—"
-                                        }
+                                            .join("") || "—"}
                       </td>
-                    </tr>
-                  `
+                    </tr>`
                                 )
                                 .join("")}
                 </tbody>
               </table>
             </div>
           </div>
-        </div>
-      `
+        </div>`
                     )
                     .join("");
             }
         }
+
     }
 
     // === [B2] Lấy dữ liệu và mở modal ===
