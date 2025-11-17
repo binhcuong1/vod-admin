@@ -914,25 +914,40 @@
         }
 
         // Sources (movie-level)
+        const srcCol = qs("#mvDtlSourcesCol");
         const sb = qs("#mvDtlSourceBody");
-        if (sb) {
-            sb.innerHTML =
-                (sources || [])
-                    .map(
-                        (s) => `
-      <tr>
-        <td class="text-center">${esc(
-                            s.resolution_type || (s.resolution_id ?? "")
-                        )}</td>
-        <td><a href="${esc(
-                            s.source_url || "#"
-                        )}" target="_blank" rel="noopener">${esc(s.source_url || "")}</a></td>
-      </tr>
-    `
-                    )
-                    .join("") ||
-                `<tr><td colspan="2" class="text-center text-muted">—</td></tr>`;
+
+        if (srcCol) {
+            // chỉ show cho PHIM LẺ
+            const showSources = film && !film.is_series;
+            srcCol.style.display = showSources ? "" : "none";
+
+            if (!showSources || !sb) {
+                if (sb) sb.innerHTML = "";
+            } else {
+                sb.innerHTML =
+                    (sources || []).length
+                        ? (sources || [])
+                            .map(
+                                (s) => `
+              <tr>
+                <td class="text-center">${esc(
+                                    s.resolution_type || (s.resolution_id ?? "")
+                                )}</td>
+                <td>
+                  <a href="${esc(s.source_url || "#")}"
+                     target="_blank" rel="noopener">
+                    ${esc(s.source_url || "")}
+                  </a>
+                </td>
+              </tr>`
+                            )
+                            .join("")
+                        : `<tr><td colspan="2" class="text-center text-muted">—</td></tr>`;
+            }
         }
+
+
 
         // Cast
         const castBox = qs("#mvDtlCast");
@@ -1022,7 +1037,7 @@
     // === [B2] Lấy dữ liệu và mở modal ===
     async function openView(id) {
         try {
-            const data = await mvGetDetail(id);
+            const data = await mvGetDetail(id); console.table(data);
             renderDetail(data);
             if (window.jQuery) {
                 window.jQuery("#movieDetailModal").modal("show");
