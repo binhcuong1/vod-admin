@@ -24,7 +24,6 @@
     const FILM_SOURCES = (filmId) => `${API_BASE}/api/films/${filmId}/sources`;
     const EPISODE_SOURCES = (epId) => `${API_BASE}/api/episodes/${epId}/sources`;
 
-
     const RESOLUTIONS = [
         { id: 1, label: '360p' },
         { id: 2, label: '480p' },
@@ -685,6 +684,54 @@
                 else qs("#episodeEditModal")?.classList.remove("d-none");
             };
         });
+
+        // Xem nguồn phát của tập
+        tb.querySelectorAll(".btn-ep-src").forEach(btn => {
+            btn.onclick = async (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                const eid = btn.dataset.ep;
+                if (!eid) return alert("Không tìm thấy Episode_id.");
+
+                // Hiển thị placeholder trước
+                const body = qs("#epSrcBody");
+                body.innerHTML = `
+            <tr><td colspan="2" class="text-center text-muted">Đang tải...</td></tr>
+        `;
+
+                // Gọi API
+                try {
+                    const r = await epSources(eid);
+                    const rows = r.data || [];
+
+                    if (!rows.length) {
+                        body.innerHTML = `
+                    <tr><td colspan="2" class="text-center text-muted">
+                        Chưa có nguồn phát
+                    </td></tr>`;
+                    } else {
+                        body.innerHTML = rows
+                            .map(src => `
+                        <tr>
+                            <td class="text-center">${src.resolution_type}</td>
+                            <td>${src.source_url || ""}</td>
+                        </tr>
+                    `)
+                            .join("");
+                    }
+
+                    // mở modal
+                    if (window.jQuery) jQuery("#episodeSrcModal").modal("show");
+                    else qs("#episodeSrcModal")?.classList.remove("d-none");
+
+                } catch (err) {
+                    console.error("[movies] load episode sources failed:", err);
+                    alert("Không tải được nguồn phát của tập.");
+                }
+            };
+        });
+
 
         const btnEpEditSave = qs("#btnEpEditSave");
         if (btnEpEditSave) {
