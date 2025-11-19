@@ -60,6 +60,7 @@
     // Seasons/Episodes (optional)
     const SEASONS = (movieId) => `${API_BASE}/api/films/${movieId}/seasons`;
     const EPISODES = (seasonId) => `${API_BASE}/api/seasons/${seasonId}/episodes`;
+    const SEASON_ONE = (id) => `${API_BASE}/api/seasons/${id}`;
 
     // ===== Utils =====
     const esc = (s) =>
@@ -171,10 +172,13 @@
         }));
     }
 
-    async function epCreate(sid, p) {
-        const r = await axios.post(EPISODES(sid), p);
+    async function epCreate(seasonId, p) {
+        const body = { episode_number: p?.episode_number };
+        const r = await axios.post(EPISODES(seasonId), body);
         return r.data;
     }
+
+
     async function epUpdate(eid, p) {
         const r = await axios.put(`${API_BASE}/api/episodes/${eid}`, p);
         return r.data;
@@ -183,6 +187,12 @@
         const r = await axios.delete(`${API_BASE}/api/episodes/${eid}`);
         return r.data;
     }
+
+    async function seDelete(seasonId) {
+        const r = await axios.delete(SEASON_ONE(seasonId));
+        return r.data;
+    }
+
 
     // ===== Render Table =====
     function renderMovieRows(rows) {
@@ -391,13 +401,11 @@
             if (window.jQuery) window.jQuery("#movieModal").modal("show");
             else qs("#movieModal")?.classList.remove("d-none");
 
-            // Nếu là series -> load seasons & episodes như cũ
+            // Nếu là series -> load seasons & episodes (accordion mới)
             if (m.is_series) {
-                const seasons = await seList(id);
-                renderSeasonOptions(seasons);
-                const sid = qs("#seasonList")?.value;
-                if (sid) renderEpisodes(await epList(sid));
+                await renderSeasonsAndEpisodes(id);
             }
+
         } catch (err) {
             console.error("[movies] openEdit failed:", err);
             alert("Không tải được dữ liệu phim để sửa.");
@@ -477,82 +485,319 @@
 
 
 
-    // ===== Seasons UI =====
-    function renderSeasonOptions(seasons) {
-        const sel = qs("#seasonList");
-        if (!sel) return;
-        sel.innerHTML = (seasons || [])
-            .map(s => `<option value="${s.id}">${esc(s.name || ('Season ' + (s.number ?? '')))}</option>`)
-            .join("");
-        const btnEp = qs("#btnAddEpisode");
-        if (btnEp) btnEp.disabled = !sel.value;
+    // ===== Seasons UI (mới: accordion theo mùa) =====
+
+    // Render toàn bộ seasons + episodes cho 1 movie
+    async function renderSeasonsAndEpisodes(movieId) {
+        const wrap = qs("#seasonAccordion");
+        if (!wrap) return;
+
+        const seasons = await seList(movieId);
+        if (!seasons.length) {
+            wrap.innerHTML = '<div class="text-muted small">Chưa có mùa nào.</div>';
+            return;
+        }
+
+        wrap.innerHTML = seasons.map((s, idx) => `
+          <div class="card mb-2">
+            <div class="card-header py-2 season-header" 
+                 data-target="#seasonCollapse-${s.id}">
+              <div class="d-flex justify-content-between align-items-center">
+                <span class="season-title">${esc(s.name)}</span>
+                <div class="d-flex align-items-center">
+                  <i class="fas fa-chevron-down season-arrow mr-2"></i>
+                  <button type="button"
+                          class="btn btn-xs btn-outline-danger btn-del-season"
+                          data-season="${s.id}">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div id="seasonCollapse-${s.id}" class="collapse ${idx === 0 ? "show" : ""}">
+              <div class="card-body p-2">
+                <div class="table-responsive">
+                  <table class="table table-sm table-bordered mb-0">
+                    <thead class="text-center">
+                      <tr>
+                        <th style="width:70px">#</th>
+                        <th>Tên tập</th>
+                        <th style="width:90px">Thời lượng</th>
+                        <th style="width:110px">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody id="epBody-${s.id}">
+                      <tr><td colspan="4" class="text-center text-muted">Đang tải...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        `).join("");
+
+
+        // Sau khi vẽ skeleton, load từng danh sách tập
+        for (const s of seasons) {
+            const eps = await epList(s.id);
+            renderEpisodesForSeason(s.id, eps);
+        }
+
+        // Gắn sự kiện mở/đóng cho toàn bộ header
+        wrap.querySelectorAll(".season-header").forEach(header => {
+            header.onclick = () => {
+                const target = header.dataset.target;
+                const panel = qs(target);
+                const arrow = header.querySelector(".season-arrow");
+
+                // Toggle collapse
+                if (panel.classList.contains("show")) {
+                    $(panel).collapse("hide");
+                    arrow.classList.remove("rotate");
+                } else {
+                    $(panel).collapse("show");
+                    arrow.classList.add("rotate");
+                }
+            };
+        });
+
+        // Xoá mùa
+        wrap.querySelectorAll(".btn-del-season").forEach(btn => {
+            btn.onclick = async (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation(); // để click nút xoá không làm mở/đóng accordion
+
+                const sid = btn.dataset.season;
+                if (!sid) return alert("Không tìm thấy Season_id.");
+                if (!confirm("Xoá mùa này (và các tập bên trong)?")) return;
+
+                try {
+                    await seDelete(sid);
+                    await renderSeasonsAndEpisodes(movieId); // reload lại danh sách mùa
+                } catch (err) {
+                    console.error("[movies] delete season failed:", err);
+                    alert("Xoá mùa thất bại. Mở Console để xem chi tiết.");
+                }
+            };
+        });
+
+
+        // Xoay icon khi bootstrap trigger
+        wrap.querySelectorAll(".collapse").forEach(col => {
+            col.addEventListener("shown.bs.collapse", () => {
+                const header = qs(`[data-target="#${col.id}"]`);
+                header?.querySelector(".season-arrow")?.classList.add("rotate");
+            });
+            col.addEventListener("hidden.bs.collapse", () => {
+                const header = qs(`[data-target="#${col.id}"]`);
+                header?.querySelector(".season-arrow")?.classList.remove("rotate");
+            });
+        });
+
     }
 
-    function renderEpisodes(episodes) {
-        const tb = qs("#episodeBody");
+    // Render bảng tập cho 1 mùa + dòng "+ Thêm tập"
+    function renderEpisodesForSeason(seasonId, episodes) {
+        const maxNo = (episodes || []).reduce(
+            (m, e) => Math.max(m, e.number || 0),
+            0
+        );
+        const nextNo = maxNo + 1;
+
+        const tb = qs(`#epBody-${seasonId}`);
         if (!tb) return;
 
-        tb.innerHTML = (episodes || []).map((e, i) => `
-  <tr>
-    <td class="text-center">${e.number ?? (i + 1)}</td>
-    <td>${esc(e.title || "")}</td>
-    <td class="text-center">${e.duration ? (e.duration + "p") : ""}</td>
-    <td class="text-center">
-      <button type="button" class="btn btn-xs btn-secondary btn-ep-src" data-ep='${JSON.stringify({ id: e.id, number: e.number, title: e.title || '' })}'>
-        Src
-      </button>
-      <button type="button" class="btn btn-xs btn-info btn-edit-ep" data-ep="${e.id}">
-        <i class="fas fa-edit"></i>
-      </button>
-      <button type="button" class="btn btn-xs btn-danger btn-del-ep" data-ep="${e.id}">
-        <i class="fas fa-trash"></i>
-      </button>
-    </td>
-  </tr>`).join("");
+        const rowsHtml = (episodes || []).map((e, i) => `
+      <tr>
+        <td class="text-center align-middle">${e.number ?? (i + 1)}</td>
+        <td class="align-middle">${esc(e.title || "")}</td>
+        <td class="text-center align-middle">${e.duration ? (e.duration + "p") : ""}</td>
+        <td class="text-center align-middle">
+          <button type="button" class="btn btn-xs btn-secondary btn-ep-src"
+                  data-ep='${JSON.stringify({ id: e.id, number: e.number, title: e.title || "" })}'>
+            Src
+          </button>
+          <button type="button" class="btn btn-xs btn-info btn-edit-ep" data-ep="${e.id}">
+            <i class="fas fa-edit"></i>
+          </button>
+          <button type="button" class="btn btn-xs btn-danger btn-del-ep" data-ep="${e.id}">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      </tr>
+    `).join("");
+
+        // Dòng cuối: nút + Thêm tập
+        const addRow = `
+          <tr>
+            <td colspan="4" class="text-center">
+              <button type="button"
+                      class="btn btn-sm btn-outline-success btn-add-ep"
+                      data-season="${seasonId}"
+                      data-next="${nextNo}">
+                + Thêm tập (#${nextNo})
+              </button>
+            </td>
+          </tr>
+        `;
 
 
-        // Delete
-        qsa(".btn-del-ep").forEach(btn => btn.onclick = async (ev) => {
-            ev.preventDefault(); ev.stopPropagation();
-            const eid = btn.dataset.ep;
-            if (!eid) return alert("Không tìm thấy ID tập.");
-            if (!confirm("Xoá tập này?")) return;
-            await epDelete(eid);
-            const sid = qs("#seasonList")?.value;
-            if (sid) renderEpisodes(await epList(sid));
+        tb.innerHTML = rowsHtml + addRow;
+
+        // Gắn sự kiện cho các nút trong mùa này
+        tb.querySelectorAll(".btn-del-ep").forEach(btn => {
+            btn.onclick = async (ev) => {
+                ev.preventDefault(); ev.stopPropagation();
+                const eid = btn.dataset.ep;
+                if (!eid) return alert("Không tìm thấy ID tập.");
+                if (!confirm("Xoá tập này?")) return;
+                await epDelete(eid);
+                const eps = await epList(seasonId);
+                renderEpisodesForSeason(seasonId, eps);
+            };
         });
 
-        // Edit
-        qsa(".btn-edit-ep").forEach(btn => btn.onclick = async (ev) => {
-            ev.preventDefault(); ev.stopPropagation();
-            const eid = btn.dataset.ep;
-            if (!eid) return alert("Không tìm thấy ID tập.");
-            const title = prompt("Tên tập mới:");
-            if (title == null) return;
-            const d = prompt("Thời lượng (phút):");
-            await epUpdate(eid, { title, duration: d ? Number(d) : null });
-            const sid = qs("#seasonList")?.value;
-            if (sid) renderEpisodes(await epList(sid));
+        tb.querySelectorAll(".btn-edit-ep").forEach(btn => {
+            btn.onclick = (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                const eid = btn.dataset.ep;
+                if (!eid) return alert("Không tìm thấy ID tập.");
+
+                // Lấy dòng hiện tại để đọc tên & thời lượng hiện tại
+                const row = btn.closest("tr");
+                const titleCell = row?.children?.[1];
+                const durCell = row?.children?.[2];
+
+                const curTitle = titleCell ? titleCell.textContent.trim() : "";
+                const curDurText = durCell ? durCell.textContent.trim().replace("p", "") : "";
+                const curDur = curDurText ? Number(curDurText) : "";
+
+                qs("#epEditId").value = eid;
+                qs("#epEditSeasonId").value = seasonId;
+                qs("#epTitleInput").value = curTitle;
+                qs("#epDurationInput").value = curDur;
+
+                if (window.jQuery) jQuery("#episodeEditModal").modal("show");
+                else qs("#episodeEditModal")?.classList.remove("d-none");
+            };
         });
 
-        // Episode Sources
-        qsa(".btn-ep-src").forEach(btn => btn.onclick = async (ev) => {
-            ev.preventDefault(); ev.stopPropagation();
-            const meta = btn.dataset.ep ? JSON.parse(btn.dataset.ep) : null;
-            if (!meta?.id) return alert("Không tìm thấy ID tập.");
-            await openEpSources(meta);
+        // Xem nguồn phát của tập
+        tb.querySelectorAll(".btn-ep-src").forEach(btn => {
+            btn.onclick = async (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
 
-            // gắn nút Lưu trong modal
-            const saveBtn = qs('#btnSaveEpSources');
-            if (saveBtn) {
-                saveBtn.onclick = async () => {
-                    await saveEpSources(meta.id);
-                    const sid = qs("#seasonList")?.value;
-                    if (sid) renderEpisodes(await epList(sid)); // refresh bảng tập
-                };
-            }
+                const eid = btn.dataset.ep;
+                if (!eid) return alert("Không tìm thấy Episode_id.");
+
+                // Hiển thị placeholder trước
+                const body = qs("#epSrcBody");
+                body.innerHTML = `
+            <tr><td colspan="2" class="text-center text-muted">Đang tải...</td></tr>
+        `;
+
+                // Gọi API
+                try {
+                    const r = await epSources(eid);
+                    const rows = r.data || [];
+
+                    if (!rows.length) {
+                        body.innerHTML = `
+                    <tr><td colspan="2" class="text-center text-muted">
+                        Chưa có nguồn phát
+                    </td></tr>`;
+                    } else {
+                        body.innerHTML = rows
+                            .map(src => `
+                        <tr>
+                            <td class="text-center">${src.resolution_type}</td>
+                            <td>${src.source_url || ""}</td>
+                        </tr>
+                    `)
+                            .join("");
+                    }
+
+                    // mở modal
+                    if (window.jQuery) jQuery("#episodeSrcModal").modal("show");
+                    else qs("#episodeSrcModal")?.classList.remove("d-none");
+
+                } catch (err) {
+                    console.error("[movies] load episode sources failed:", err);
+                    alert("Không tải được nguồn phát của tập.");
+                }
+            };
         });
+
+
+        const btnEpEditSave = qs("#btnEpEditSave");
+        if (btnEpEditSave) {
+            btnEpEditSave.onclick = async () => {
+                const eid = qs("#epEditId")?.value;
+                const sid = qs("#epEditSeasonId")?.value;
+                if (!eid || !sid) return;
+
+                const title = qs("#epTitleInput")?.value?.trim() || null;
+                const dVal = qs("#epDurationInput")?.value;
+                const duration = dVal ? Number(dVal) : null;
+
+                try {
+                    await epUpdate(eid, { title, duration });
+                    if (window.jQuery) jQuery("#episodeEditModal").modal("hide");
+                    else qs("#episodeEditModal")?.classList.add("d-none");
+
+                    const eps = await epList(sid);
+                    renderEpisodesForSeason(Number(sid), eps);
+                } catch (err) {
+                    console.error("[movies] update episode failed:", err);
+                    alert("Cập nhật tập thất bại. Mở Console để xem chi tiết.");
+                }
+            };
+        }
+
+
+        tb.querySelectorAll(".btn-ep-src").forEach(btn => {
+            btn.onclick = async (ev) => {
+                ev.preventDefault(); ev.stopPropagation();
+                const meta = btn.dataset.ep ? JSON.parse(btn.dataset.ep) : null;
+                if (!meta?.id) return alert("Không tìm thấy ID tập.");
+                await openEpSources(meta);
+
+                const saveBtn = qs("#btnSaveEpSources");
+                if (saveBtn) {
+                    saveBtn.onclick = async () => {
+                        await saveEpSources(meta.id);
+                        const eps = await epList(seasonId);
+                        renderEpisodesForSeason(seasonId, eps);
+                    };
+                }
+            };
+        });
+
+        tb.querySelectorAll(".btn-add-ep").forEach(btn => {
+            btn.onclick = async (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                const sid = btn.dataset.season;
+                if (!sid) return alert("Không tìm thấy Season_id.");
+
+                const nextNo = Number(btn.dataset.next) || 1;
+
+                // Gửi đúng những gì API đang cần
+                await epCreate(sid, { episode_number: nextNo });
+
+                // Tạo xong → load lại danh sách tập cho mùa đó
+                const eps = await epList(sid);
+                renderEpisodesForSeason(sid, eps);
+            };
+        });
+
     }
+
 
     async function openEpSources(ep) { // ep: {id, number, title}
         // hiển thị tiêu đề
@@ -763,18 +1008,46 @@
         const isSeriesCb = qs("#Is_series");
         if (isSeriesCb) isSeriesCb.onchange = (e) => toggleSeries(e.target.checked);
 
-        // seasons events
-        const seasonList = qs("#seasonList");
-        if (seasonList) {
-            seasonList.onchange = async (e) => {
-                const sid = e.target.value;
-                const btnEp = qs("#btnAddEpisode");
-                if (btnEp) btnEp.disabled = !sid;
-                if (!sid) return renderEpisodes([]);
-                const eps = await epList(sid);
-                renderEpisodes(eps);
+        let _currentMovieIdForSeason = null;
+
+        const btnAddSeason = qs("#btnAddSeason");
+        if (btnAddSeason) {
+            btnAddSeason.onclick = () => {
+                const mid = qs("#Movie_id")?.value;
+                if (!mid) return alert("Hãy lưu phim trước rồi mới tạo mùa.");
+
+                _currentMovieIdForSeason = mid;
+                const inp = qs("#seasonNameInput");
+                if (inp) inp.value = "";
+
+                if (window.jQuery) jQuery("#seasonAddModal").modal("show");
+                else qs("#seasonAddModal")?.classList.remove("d-none");
             };
         }
+
+        // nút Lưu trong modal Thêm mùa
+        const btnSeasonSave = qs("#btnSeasonSave");
+        if (btnSeasonSave) {
+            btnSeasonSave.onclick = async () => {
+                const mid = _currentMovieIdForSeason;
+                if (!mid) return;
+
+                const inp = qs("#seasonNameInput");
+                const name = inp?.value?.trim();
+                if (!name) return alert("Tên mùa là bắt buộc.");
+
+                try {
+                    await seCreate(mid, { name });
+                    if (window.jQuery) jQuery("#seasonAddModal").modal("hide");
+                    else qs("#seasonAddModal")?.classList.add("d-none");
+                    await renderSeasonsAndEpisodes(mid);
+                } catch (err) {
+                    console.error("[movies] create season failed:", err);
+                    alert("Tạo mùa thất bại. Mở Console để xem chi tiết.");
+                }
+            };
+        }
+
 
         const btnSaveMovieSources = qs('#btnSaveMovieSources');
         if (btnSaveMovieSources) {
@@ -785,45 +1058,13 @@
             };
         }
 
-        const btnAddSeason = qs("#btnAddSeason");
-        if (btnAddSeason) {
-            btnAddSeason.onclick = async () => {
-                const mid = qs("#Movie_id")?.value;
-                if (!mid) return alert("Hãy lưu phim trước rồi mới tạo mùa.");
-                const name = prompt("Tên mùa (ví dụ: Season 1):", "");
-                if (!name) return;
-                await seCreate(mid, { name });
-                const seasons = await seList(mid);
-                renderSeasonOptions(seasons);
-                const sid = qs("#seasonList")?.value;
-                if (sid) {
-                    const eps = await epList(sid);
-                    renderEpisodes(eps);
-                }
-            };
-        }
-
         async function seCreate(mid, p) {
             const body = {
-                name: p?.name ?? p?.season_name ?? 'Season 1',
-                season_name: p?.season_name ?? p?.name ?? 'Season 1'
+                name: p?.name ?? p?.season_name ?? "Season 1",
+                season_name: p?.season_name ?? p?.name ?? "Season 1",
             };
             const r = await axios.post(SEASONS(mid), body);
             return r.data;
-        }
-
-        const btnAddEpisode = qs("#btnAddEpisode");
-        if (btnAddEpisode) {
-            btnAddEpisode.onclick = async () => {
-                const sid = qs("#seasonList")?.value;
-                if (!sid) return alert("Chọn một mùa trước.");
-                const title = prompt("Tên tập:", "");
-                if (!title) return;
-                const d = Number(prompt("Thời lượng (phút):", "")) || null;
-                await epCreate(sid, { title, duration: d });
-                const eps = await epList(sid);
-                renderEpisodes(eps);
-            };
         }
     }
 
@@ -914,25 +1155,40 @@
         }
 
         // Sources (movie-level)
+        const srcCol = qs("#mvDtlSourcesCol");
         const sb = qs("#mvDtlSourceBody");
-        if (sb) {
-            sb.innerHTML =
-                (sources || [])
-                    .map(
-                        (s) => `
-      <tr>
-        <td class="text-center">${esc(
-                            s.resolution_type || (s.resolution_id ?? "")
-                        )}</td>
-        <td><a href="${esc(
-                            s.source_url || "#"
-                        )}" target="_blank" rel="noopener">${esc(s.source_url || "")}</a></td>
-      </tr>
-    `
-                    )
-                    .join("") ||
-                `<tr><td colspan="2" class="text-center text-muted">—</td></tr>`;
+
+        if (srcCol) {
+            // chỉ show cho PHIM LẺ
+            const showSources = film && !film.is_series;
+            srcCol.style.display = showSources ? "" : "none";
+
+            if (!showSources || !sb) {
+                if (sb) sb.innerHTML = "";
+            } else {
+                sb.innerHTML =
+                    (sources || []).length
+                        ? (sources || [])
+                            .map(
+                                (s) => `
+              <tr>
+                <td class="text-center">${esc(
+                                    s.resolution_type || (s.resolution_id ?? "")
+                                )}</td>
+                <td>
+                  <a href="${esc(s.source_url || "#")}"
+                     target="_blank" rel="noopener">
+                    ${esc(s.source_url || "")}
+                  </a>
+                </td>
+              </tr>`
+                            )
+                            .join("")
+                        : `<tr><td colspan="2" class="text-center text-muted">—</td></tr>`;
+            }
         }
+
+
 
         // Cast
         const castBox = qs("#mvDtlCast");
@@ -1022,7 +1278,7 @@
     // === [B2] Lấy dữ liệu và mở modal ===
     async function openView(id) {
         try {
-            const data = await mvGetDetail(id);
+            const data = await mvGetDetail(id); console.table(data);
             renderDetail(data);
             if (window.jQuery) {
                 window.jQuery("#movieDetailModal").modal("show");
