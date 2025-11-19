@@ -210,52 +210,36 @@
                         <small class="text-muted">Để trống ô URL nếu không có nguồn ở độ phân giải đó.</small>
                     </div>
 
+                    <!-- Nút Hủy / Lưu (chỉ áp dụng cho thông tin phim) -->
+                    <div class="d-flex justify-content-end mt-3 mb-2">
+                        <button class="btn btn-secondary mr-2" type="button" data-dismiss="modal">
+                            Hủy
+                        </button>
+                        <button class="btn btn-primary" id="btnSaveMovie" type="submit">
+                            Lưu
+                        </button>
+                    </div>
 
                     <!-- (Tùy chọn) Series Block -->
                     <div id="seriesBlock" class="mt-3" style="display:none">
                         <hr>
                         <div class="d-flex align-items-center justify-content-between">
                             <h6 class="mb-0">Seasons &amp; Episodes</h6>
-                            <div class="btn-group">
-                                <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddSeason">
-                                    <i class="fas fa-layer-group"></i> Thêm mùa
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddEpisode"
-                                    disabled>
-                                    <i class="fas fa-list-ul"></i> Thêm tập (mùa đã chọn)
-                                </button>
-                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddSeason">
+                                <i class="fas fa-layer-group"></i> Thêm mùa
+                            </button>
                         </div>
 
-                        <div class="form-row mt-2">
-                            <div class="form-group col-5">
-                                <label for="seasonList">Danh sách mùa</label>
-                                <select id="seasonList" class="form-control form-control-sm"></select>
-                            </div>
-                            <div class="form-group col-7">
-                                <label>Tập của mùa</label>
-                                <div class="table-responsive" style="max-height:180px; overflow:auto">
-                                    <table class="table table-sm table-bordered mb-0">
-                                        <thead class="text-center">
-                                            <tr>
-                                                <th style="width:70px">#</th>
-                                                <th>Tên tập</th>
-                                                <th style="width:90px">Thời lượng</th>
-                                                <th style="width:90px">Thao tác</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="episodeBody"></tbody>
-                                    </table>
-                                </div>
-                            </div>
+                        <!-- Accordion chứa các mùa -->
+                        <div id="seasonAccordion" class="mt-2">
+                            <!-- JS sẽ render từng mùa + các tập bên trong -->
                         </div>
                     </div>
-                    <!-- /seriesBlock -->
+
                 </div>
 
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" type="button" data-dismiss="modal">Hủy</button>
-                    <button class="btn btn-primary" id="btnSaveMovie" type="submit">Lưu</button>
+                    <button class="btn btn-secondary" type="button" data-dismiss="modal">Đóng</button>
                 </div>
             </form>
         </div>
@@ -377,6 +361,63 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" data-dismiss="modal">Hủy</button>
                 <button class="btn btn-primary" id="btnSaveEpSources">Lưu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Thêm mùa -->
+<div class="modal fade" id="seasonAddModal" tabindex="-1" role="dialog" aria-labelledby="seasonAddLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title" id="seasonAddLabel">Thêm mùa</h6>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body py-2">
+                <div class="form-group mb-2">
+                    <label for="seasonNameInput" class="mb-1">Tên mùa</label>
+                    <input type="text" class="form-control form-control-sm" id="seasonNameInput"
+                        placeholder="Mùa 1 / Season 1">
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-sm btn-primary" id="btnSeasonSave">Lưu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Sửa tập -->
+<div class="modal fade" id="episodeEditModal" tabindex="-1" role="dialog" aria-labelledby="episodeEditLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title" id="episodeEditLabel">Sửa tập</h6>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body py-2">
+                <input type="hidden" id="epEditId">
+                <input type="hidden" id="epEditSeasonId">
+                <div class="form-group mb-2">
+                    <label for="epTitleInput" class="mb-1">Tên tập</label>
+                    <input type="text" class="form-control form-control-sm" id="epTitleInput">
+                </div>
+                <div class="form-group mb-1">
+                    <label for="epDurationInput" class="mb-1">Thời lượng (phút)</label>
+                    <input type="number" min="0" class="form-control form-control-sm" id="epDurationInput">
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-sm btn-primary" id="btnEpEditSave">Lưu</button>
             </div>
         </div>
     </div>
