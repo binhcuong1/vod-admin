@@ -8,6 +8,7 @@
     const qs = (sel, root = document) => root.querySelector(sel);
     const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
     let _isEdit = false;
+    let _allMovies = [];
 
     // ===== Config / Endpoints =====
     const API_BASE = window.API_BASE || "http://localhost:3000";
@@ -993,8 +994,10 @@
 
     async function reloadMovies() {
         const rows = await mvList();
-        renderMovieRows(rows);
+        _allMovies = Array.isArray(rows) ? rows : [];
+        renderMovieRows(_allMovies);
     }
+
 
     function wirePage() {
         const addBtn = qs("#btnAddMovie");
@@ -1007,6 +1010,27 @@
         if (form) form.onsubmit = onSubmit;
         const isSeriesCb = qs("#Is_series");
         if (isSeriesCb) isSeriesCb.onchange = (e) => toggleSeries(e.target.checked);
+
+        // Search theo tên phim
+        const searchInput = qs("#movieSearch");
+        if (searchInput) {
+            const doFilter = debounce(() => {
+                const kw = searchInput.value.trim().toLowerCase();
+                if (!kw) {
+                    // không nhập gì -> hiện tất cả
+                    renderMovieRows(_allMovies);
+                    return;
+                }
+
+                const filtered = _allMovies.filter(m => {
+                    const name = (m.name ?? m.Film_name ?? "").toLowerCase();
+                    return name.includes(kw);
+                });
+                renderMovieRows(filtered);
+            }, 300);
+
+            searchInput.oninput = doFilter;
+        }
 
         let _currentMovieIdForSeason = null;
 
