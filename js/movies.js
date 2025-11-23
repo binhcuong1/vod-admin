@@ -43,6 +43,7 @@
             Film_id: d.film?.id,
             Film_name: d.film?.name,
             is_series: d.film?.is_series,
+            is_premium_only: d.film?.is_premium_only,
 
             Original_name: d.info?.original_name ?? '',
             Description: d.info?.description ?? '',
@@ -311,6 +312,7 @@
         setVal('#Movie_id', m.Film_id ?? m.id ?? '');
         setVal('#Movie_name', m.Film_name ?? m.name ?? '');
         setChecked('#Is_series', !!(m.is_series ?? m.isSeries));
+        setChecked('#Is_premium_only', !!m.is_premium_only);
 
         // info
         setVal('#Original_name', m.Original_name ?? m.original_name ?? '');
@@ -371,6 +373,8 @@
         _isEdit = false;
         clearMovieForm();
 
+        qs("#Is_premium_only").checked = false;
+
         // bỏ tick Là series mặc định
         const chk = qs("#Is_series");
         if (chk) chk.checked = false;
@@ -429,10 +433,12 @@
         if (!film_name) return alert("Tên phim là bắt buộc");
 
         const isSeries = !!qs("#Is_series")?.checked;
+        const isPremium  = !!qs("#Is_premium_only")?.checked;
 
         const payload = {
             film_name,
             is_series: isSeries,
+            is_premium_only: isPremium,
             film_info: {
                 original_name: qs("#Original_name")?.value?.trim() || null,
                 description: qs("#Overview")?.value?.trim() || null,
