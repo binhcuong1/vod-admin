@@ -209,40 +209,39 @@
             window.jQuery("#tblMovies").DataTable().clear().destroy();
         }
 
-        const tb = table.tBodies[0] || table.createTBody();
-        tb.innerHTML = (rows || [])
-            .map((m) => {
-                const id = m.id ?? m.Film_id ?? "";
-                const name = m.name ?? m.Film_name ?? "";
-                const year = m.year ?? m.Release_year ?? "";
-                const duration = m.duration ?? m.Duration ?? "";
-                const isSeries = !!(m.isSeries ?? m.is_series);
-                const active = !!(
-                    m.active ?? (m.is_deleted !== undefined ? !m.is_deleted : true)
-                );
+        const tb = qs("#tblMovies tbody");
+        if (!tb) return;
 
-                return `
-      <tr>
-        <td>${id}</td>
-        <td>${esc(name)}</td>
-        <td class="text-center">${year || ""}</td>
-        <td class="text-center">${duration ? duration + "p" : ""}</td>
-        <td class="text-center">${isSeries ? "Yes" : "No"}</td>
-        <td class="text-center">${active ? "Yes" : "No"}</td>
-        <td class="text-center">
-          <button class="btn btn-sm btn-secondary btn-view-mv" data-id="${id}" title="Xem chi tiết">
-            <i class="fas fa-eye"></i>
-          </button>
-          <button class="btn btn-sm btn-info btn-edit-mv" data-id="${id}">
-            <i class="fas fa-edit"></i>
-          </button>
-          <button class="btn btn-sm btn-danger btn-del-mv" data-id="${id}">
-            <i class="fas fa-trash"></i>
-          </button>
-        </td>
-      </tr>`;
-            })
-            .join("");
+        tb.innerHTML = rows.map(m => {
+            const isSeries = !!m.is_series;
+            const isPremium = !!m.is_premium_only;   // BE cần trả về field này
+
+            return `
+        <tr data-id="${m.Film_id}">
+          <td>${m.Film_id ?? ''}</td>
+          <td>
+            <div class="d-flex align-items-center">
+              ${m.poster_main ? `<img src="${esc(m.poster_main)}" style="width:48px;height:72px;object-fit:cover" class="mr-2 rounded">` : ""}
+              <div>
+                <div class="font-weight-bold">${esc(m.Film_name || '')}</div>
+                <div class="small text-muted">${esc(m.Original_name || '')}</div>
+                <div class="small text-muted">${esc(m.Country_name || '')} · ${esc(m.genres || '')}</div>
+              </div>
+            </div>
+          </td>
+          <td class="text-center">${m.Release_year ?? ''}</td>
+          <td class="text-center">${m.Duration ? (m.Duration + 'p') : ''}</td>
+          <td class="text-center">${isSeries ? 'Yes' : 'No'}</td>
+          <td class="text-center">${isPremium ? 'Premium' : ''}</td>
+          <td class="text-center">${yesNo(m.active)}</td>
+          <td class="text-center">
+            <button class="btn btn-sm btn-info btn-view-mv" data-id="${m.Film_id}">Xem</button>
+            <button class="btn btn-sm btn-primary btn-edit-mv" data-id="${m.Film_id}">Sửa</button>
+            <button class="btn btn-sm btn-danger btn-del-mv" data-id="${m.Film_id}">Xóa</button>
+          </td>
+        </tr>
+        `;
+        }).join('');
 
         tb.querySelectorAll(".btn-view-mv").forEach(
             (b) => (b.onclick = () => openView(b.dataset.id))
@@ -433,7 +432,7 @@
         if (!film_name) return alert("Tên phim là bắt buộc");
 
         const isSeries = !!qs("#Is_series")?.checked;
-        const isPremium  = !!qs("#Is_premium_only")?.checked;
+        const isPremium = !!qs("#Is_premium_only")?.checked;
 
         const payload = {
             film_name,
@@ -1121,10 +1120,16 @@
         qs("#mvDtlTitle").textContent = esc(film?.name ?? "");
         const typeEl = qs("#mvDtlType");
         if (typeEl) {
-            typeEl.textContent = film?.is_series ? "Series" : "Movie";
-            typeEl.className =
-                "ml-2 badge " + (film?.is_series ? "badge-warning" : "badge-info");
+            const isSeries = !!film?.is_series;
+            const isPremium = !!film?.is_premium_only;
+
+            typeEl.classList.remove("badge-success", "badge-info");
+            typeEl.classList.add(isSeries ? "badge-success" : "badge-info");
+
+            typeEl.textContent = isSeries ? "Series" : "Movie";
+            if (isPremium) typeEl.textContent += " • Premium";
         }
+
 
         // Info
         qs("#mvDtlOriginal").textContent = esc(info?.original_name ?? "");
@@ -1152,6 +1157,12 @@
             trailerEl.style.pointerEvents = info?.trailer_url ? "auto" : "none";
         }
         qs("#mvDtlDesc").textContent = info?.description || "";
+
+        const isPremium = !!(film && film.is_premium_only);
+        const premiumEl = qs("#mvDtlPremium");
+        if (premiumEl) {
+            premiumEl.textContent = isPremium ? "Premium only" : "Miễn phí";
+        }
 
         // Posters
         const postersBox = qs("#mvDtlPosters");
