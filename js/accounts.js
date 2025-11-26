@@ -25,13 +25,13 @@
   }
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, (m) =>
-      ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      }[m])
+    ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    }[m])
     );
   }
 
@@ -58,6 +58,12 @@
     return res.data;
   }
 
+  async function apiPremiumHistory(accountId) {
+    const res = await axios.get(`/api/payments/history/${accountId}`);
+    return res.data?.data || [];
+  }
+
+
   // ================== Render ==================
   function renderAccountRows(accounts) {
     const tbody = $a("#tblAccounts tbody");
@@ -80,18 +86,23 @@
           <button class="btn btn-sm btn-danger btn-del" data-id="${a.Account_id}">
             <i class="fas fa-trash"></i>
           </button>
+          <button class="btn btn-sm btn-warning btn-premium-history"
+                  data-id="${a.Account_id}"
+                  data-email="${escapeHtml(a.Email || "")}">
+            <i class="fas fa-receipt"></i>
+          </button>
         </td>
       </tr>`
       )
       .join("");
 
-    // Khởi tạo / refresh DataTable
     if (window.jQuery?.fn?.DataTable) {
       const $tbl = window.jQuery("#tblAccounts");
       if (window.jQuery.fn.DataTable.isDataTable($tbl)) $tbl.DataTable().destroy();
       $tbl.DataTable();
     }
   }
+
 
   // ================== Init ==================
   function initAccountPage() {
@@ -105,10 +116,86 @@
       const rows = await apiAccountList();
       renderAccountRows(rows);
     } catch (err) {
-      console.error("❌ Lỗi tải tài khoản:", err);
+      console.error("Lỗi tải tài khoản:", err);
       alert("Không tải được danh sách tài khoản");
     }
   }
+
+  async function openPremiumHistory(accountId, email) {
+    const nameSpan = document.querySelector("#phAccEmail");
+    const body = document.querySelector("#premiumHistoryBody");
+
+    if (nameSpan) {
+      nameSpan.textContent = email || `Account #${accountId}`;
+    }
+
+    if (body) {
+      body.innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center text-muted">Đang tải...</td>
+        </tr>`;
+    }
+
+    try {
+      const rows = await apiPremiumHistory(accountId);
+
+      if (!body) return;
+
+      if (!rows.length) {
+        body.innerHTML = `
+          <tr>
+            <td colspan="6" class="text-center text-muted">
+              Chưa có giao dịch Premium nào.
+            </td>
+          </tr>`;
+      } else {
+        const now = new Date();
+
+        body.innerHTML = rows
+          .map((p, idx) => {
+            const paid = p.Paid_at ? new Date(p.Paid_at) : null;
+            const exp = p.Expired_at ? new Date(p.Expired_at) : null;
+            const active = exp && exp > now;
+
+            const paidStr = paid ? paid.toLocaleString("vi-VN") : "";
+            const expStr = exp ? exp.toLocaleString("vi-VN") : "";
+
+            const statusHtml = active
+              ? '<span class="badge badge-success">Còn hiệu lực</span>'
+              : '<span class="badge badge-secondary">Hết hạn</span>';
+
+            return `
+              <tr>
+                <td class="text-center">${idx + 1}</td>
+                <td class="text-right">
+                  ${Number(p.Amount || 0).toLocaleString("vi-VN")} đ
+                </td>
+                <td class="text-center">${escapeHtml(p.Method || "")}</td>
+                <td class="text-center">${paidStr}</td>
+                <td class="text-center">${expStr}</td>
+                <td class="text-center">${statusHtml}</td>
+              </tr>`;
+          })
+          .join("");
+      }
+
+      if (window.jQuery) {
+        window.jQuery("#premiumHistoryModal").modal("show");
+      }
+    } catch (err) {
+      console.error("Lỗi tải lịch sử premium:", err);
+      if (body) {
+        body.innerHTML = `
+          <tr>
+            <td colspan="6" class="text-center text-danger">
+              Lỗi tải dữ liệu.
+            </td>
+          </tr>`;
+      }
+      alert("Không tải được lịch sử thanh toán");
+    }
+  }
+
 
   // ================== Event Binding ==================
   function bindAccountEvents() {
@@ -122,6 +209,7 @@
       const addBtn = e.target.closest("#btnAddAccount");
       const editBtn = e.target.closest(".btn-edit");
       const delBtn = e.target.closest(".btn-del");
+      const historyBtn = e.target.closest(".btn-premium-history");
 
       // --- Thêm ---
       if (addBtn) {
@@ -158,6 +246,15 @@
             alert("Xóa không thành công");
           }
         }
+      }
+
+      // --- Lịch sử Premium ---
+      if (historyBtn) {
+        e.preventDefault();
+        const id = historyBtn.dataset.id;
+        const email = historyBtn.dataset.email || "";
+        openPremiumHistory(id, email);
+        return;
       }
     });
 
