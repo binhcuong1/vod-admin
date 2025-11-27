@@ -35,6 +35,25 @@
     );
   }
 
+  function toInputDateTime(value) {
+    if (!value) return "";
+    // MySQL dạng "2025-11-27T10:15:00.000Z" hoặc "2025-11-27 10:15:00"
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return "";
+
+    const pad = (n) => (n < 10 ? "0" + n : "" + n);
+
+    const year = d.getFullYear();
+    const month = pad(d.getMonth() + 1);
+    const day = pad(d.getDate());
+    const hour = pad(d.getHours());
+    const minute = pad(d.getMinutes());
+
+    // input datetime-local cần format: "YYYY-MM-DDTHH:MM"
+    return `${year}-${month}-${day}T${hour}:${minute}`;
+  }
+
+
   // ================== API ==================
   const ACCOUNT_PATH = () => window.API_ACCOUNT || "/api/accounts";
 
@@ -80,9 +99,12 @@
           <button class="btn btn-sm btn-info btn-edit"
                   data-id="${a.Account_id}"
                   data-email="${escapeHtml(a.Email || "")}"
-                  data-role="${escapeHtml(a.role || "")}">
+                  data-role="${escapeHtml(a.role || "")}"
+                  data-premium="${a.is_premium ? 1 : 0}"
+                  data-expired="${a.premium_expired || ""}">
             <i class="fas fa-edit"></i>
           </button>
+
           <button class="btn btn-sm btn-danger btn-del" data-id="${a.Account_id}">
             <i class="fas fa-trash"></i>
           </button>
@@ -218,20 +240,31 @@
         $("#Email").val("");
         $("#Password").val("");
         $("#Role").val("user");
+        $("#IsPremium").prop("checked", false);
+        $("#PremiumExpired").val("");
         $("#accountModal").modal("show");
         return;
       }
+
 
       // --- Sửa ---
       if (editBtn) {
         e.preventDefault();
         $("#Account_id").val(editBtn.dataset.id);
         $("#Email").val(editBtn.dataset.email);
-        $("#Password").val(""); // Không hiển thị mật khẩu
+        $("#Password").val("");
         $("#Role").val(editBtn.dataset.role);
+
+        const isPremium = editBtn.dataset.premium === "1" || editBtn.dataset.premium === "true";
+        $("#IsPremium").prop("checked", isPremium);
+
+        const expiredRaw = editBtn.dataset.expired || "";
+        $("#PremiumExpired").val(toInputDateTime(expiredRaw));
+
         $("#accountModal").modal("show");
         return;
       }
+
 
       // --- Xóa ---
       if (delBtn) {
@@ -270,23 +303,45 @@
         const password = ($("#Password").val() || "").trim();
         const role = ($("#Role").val() || "user").trim();
 
-        if (!email) return alert("Vui lòng nhập email");
-        if (!id && !password) return alert("Vui lòng nhập mật khẩu khi thêm mới");
+        const isPremium = $("#IsPremium").prop("checked");
+        const premiumExpired = ($("#PremiumExpired").val() || "").trim();
 
-        const payload = { email, role };
-        if (password) payload.password = password;
+        if (!email) return alert("Vui lòng nhập email");
+        if (!id && !password)
+          return alert("Vui lòng nhập mật khẩu khi thêm mới");
+
+        // payload cơ bản
+        const basePayload = { email, role };
+        if (password) basePayload.password = password;
 
         try {
-          if (id) await apiAccountUpdate(id, payload);
-          else await apiAccountCreate(payload);
+          if (id) {
+            // 🔁 UPDATE: có premium (như trước)
+            const payload = {
+              ...basePayload,
+              is_premium: isPremium ? 1 : 0,
+              premium_expired: premiumExpired || null,
+            };
+            await apiAccountUpdate(id, payload);
+          } else {
+            // 🆕 CREATE: giờ cũng gửi premium luôn
+            const payload = {
+              ...basePayload,
+              is_premium: isPremium ? 1 : 0,
+              premium_expired: premiumExpired || null,
+            };
+            await apiAccountCreate(payload);
+          }
 
           $("#accountModal").modal("hide");
           reloadAccountList();
         } catch (err) {
-          console.error("❌ Lỗi lưu tài khoản:", err);
+          console.error("Lỗi lưu tài khoản:", err);
           alert("Lưu không thành công");
         }
       });
     }
+
+
   }
 })();
