@@ -12629,3 +12629,9 @@ body.sidebar-toggled footer.sticky-footer {
 .modal {
     overflow-y: auto !important;
 }
+
+.chart-area {
+    position: relative;
+    height: 20rem;
+    /* 320px */
+}

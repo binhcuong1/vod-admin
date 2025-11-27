@@ -1,6 +1,8 @@
 <h1 class="h3 mb-4 text-gray-800">Bảng điều khiển</h1>
 
+<!-- Row 1: KPI chính -->
 <div class="row">
+    <!-- Tổng số phim -->
     <div class="col-xl-3 col-md-6 mb-4">
         <div class="card border-left-primary shadow h-100 py-2">
             <div class="card-body">
@@ -9,27 +11,198 @@
                         <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
                             Tổng số phim
                         </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">125</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="stat-total-films">0</div>
                     </div>
-                    <div class="col-auto"><i class="fas fa-video fa-2x text-gray-300"></i></div>
+                    <div class="col-auto">
+                        <i class="fas fa-video fa-2x text-gray-300"></i>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Tổng tài khoản -->
     <div class="col-xl-3 col-md-6 mb-4">
         <div class="card border-left-success shadow h-100 py-2">
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                            Thể loại
+                            Tài khoản
                         </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">15</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="stat-total-accounts">0</div>
                     </div>
-                    <div class="col-auto"><i class="fas fa-tags fa-2x text-gray-300"></i></div>
+                    <div class="col-auto">
+                        <i class="fas fa-user-friends fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Hồ sơ (Profile)
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="stat-total-profiles">0</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-id-badge fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Premium đang hoạt động -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Premium đang hoạt động
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="stat-premium-active">0</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-crown fa-2x text-gray-300"></i>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Row 2: KPI bổ sung -->
+<div class="row">
+    <!-- Doanh thu tháng này -->
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card border-left-danger shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                            Doanh thu Premium (tháng này)
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="stat-revenue-month">0 đ</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-donate fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lượt xem 7 ngày -->
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card border-left-secondary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">
+                            Lượt xem 7 ngày gần đây
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="stat-views-7d">0</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-play-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bình luận 7 ngày -->
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card border-left-dark shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-dark text-uppercase mb-1">
+                            Bình luận 7 ngày gần đây
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="stat-comments-7d">0</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-comments fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Row 3: Top phim & Doanh thu -->
+<div class="row">
+    <!-- Top phim -->
+    <div class="col-xl-8 col-lg-7 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Top phim nổi bật (lượt xem)</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-area">
+                    <canvas id="chartTopFilms"></canvas>
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted">Hiển thị theo số lượt xem (History)</small>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Doanh thu 30 ngày -->
+    <div class="col-xl-4 col-lg-5 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Doanh thu Premium 30 ngày</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-area" style="position: relative; height: 320px;">
+                    <canvas id="chartRevenue"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Row 4: Thể loại & Quốc gia -->
+<div class="row">
+    <!-- Thể loại -->
+    <div class="col-xl-6 col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    Phân bố phim theo thể loại
+                    <span class="small text-muted ml-1">(Tổng: <span id="stat-total-genres">0</span> thể loại)</span>
+                </h6>
+            </div>
+            <div class="card-body">
+                <canvas id="chartGenre"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quốc gia -->
+    <div class="col-xl-6 col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Phân bố phim theo quốc gia</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="chartCountry"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JS dashboard -->
+<script src="../js/dashboard.js"></script>
