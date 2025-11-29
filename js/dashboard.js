@@ -27,21 +27,31 @@
             const data = res.data?.data || {};
 
             const elFilms = $("#stat-total-films");
-            if (elFilms) elFilms.textContent = data.total_films ?? 0;
+            const elAcc = $("#stat-total-accounts");
+            const elProfiles = $("#stat-total-profiles");
+            const elPrem = $("#stat-premium-active");
+            const elRev = $("#stat-revenue-month");
+            const elCmt = $("#stat-comments-7d");
+            const elViews = $("#stat-views-7d");
 
-            $("#stat-total-accounts").textContent = data.total_accounts ?? 0;
-            $("#stat-total-profiles").textContent = data.total_profiles ?? 0;
-            $("#stat-premium-active").textContent = data.premium_active ?? 0;
+            if (!elFilms || !elAcc || !elProfiles || !elPrem || !elRev || !elCmt || !elViews) {
+                console.warn("[dashboard] KPI elements not found, skip loadStats");
+                return;
+            }
 
-            $("#stat-revenue-month").textContent = formatCurrency(
-                data.revenue_this_month ?? 0
-            );
-            $("#stat-comments-7d").textContent = data.comments_7_days ?? 0;
-            $("#stat-views-7d").textContent = data.views_7_days ?? 0;
+            elFilms.textContent = data.total_films ?? 0;
+            elAcc.textContent = data.total_accounts ?? 0;
+            elProfiles.textContent = data.total_profiles ?? 0;
+            elPrem.textContent = data.premium_active ?? 0;
+
+            elRev.textContent = formatCurrency(data.revenue_this_month ?? 0);
+            elCmt.textContent = data.comments_7_days ?? 0;
+            elViews.textContent = data.views_7_days ?? 0;
         } catch (err) {
             console.error("[dashboard] loadStats error:", err);
         }
     }
+
 
     // ============================
     // 2. Top Films (views)
@@ -233,5 +243,13 @@
         loadRevenueTrend();
     }
 
-    document.addEventListener("DOMContentLoaded", initDashboard);
+    window.PageInits = window.PageInits || {};
+    window.PageInits.dashboard = function () {
+        if (!document.getElementById("stat-total-films")) {
+            console.warn("[dashboard] stat-total-films not found, skip initDashboard");
+            return;
+        }
+        initDashboard();
+    };
+
 })();
