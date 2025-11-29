@@ -1,0 +1,258 @@
+<h1 class="h3 mb-4 text-gray-800">Thống kê nâng cao</h1>
+
+<!-- Bộ lọc thời gian -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <div class="row align-items-end">
+            <!-- Quick range -->
+            <div class="col-xl-4 col-md-6 mb-3">
+                <label class="font-weight-bold mb-1">Khoảng thời gian nhanh</label>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-primary stats-filter-chip" data-range="7">
+                        7 ngày
+                    </button>
+                    <button type="button" class="btn btn-outline-primary stats-filter-chip" data-range="14">
+                        14 ngày
+                    </button>
+                    <button type="button" class="btn btn-outline-primary stats-filter-chip" data-range="30">
+                        30 ngày
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tháng / Năm -->
+            <div class="col-xl-4 col-md-6 mb-3">
+                <label class="font-weight-bold mb-1">Theo tháng / năm</label>
+                <div class="form-row">
+                    <div class="col">
+                        <select id="stats-filter-month" class="form-control form-control-sm">
+                            <option value="">Tháng...</option>
+                            <option value="1">Tháng 1</option>
+                            <option value="2">Tháng 2</option>
+                            <option value="3">Tháng 3</option>
+                            <option value="4">Tháng 4</option>
+                            <option value="5">Tháng 5</option>
+                            <option value="6">Tháng 6</option>
+                            <option value="7">Tháng 7</option>
+                            <option value="8">Tháng 8</option>
+                            <option value="9">Tháng 9</option>
+                            <option value="10">Tháng 10</option>
+                            <option value="11">Tháng 11</option>
+                            <option value="12">Tháng 12</option>
+                        </select>
+                    </div>
+                    <div class="col">
+                        <select id="stats-filter-year" class="form-control form-control-sm">
+                            <!-- JS fill năm -->
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Khoảng ngày -->
+            <div class="col-xl-3 col-md-6 mb-3">
+                <label class="font-weight-bold mb-1">Từ ngày - đến ngày</label>
+                <div class="form-row">
+                    <div class="col">
+                        <input type="date" id="stats-filter-from" class="form-control form-control-sm">
+                    </div>
+                    <div class="col">
+                        <input type="date" id="stats-filter-to" class="form-control form-control-sm">
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-1 col-md-6 mb-3 text-right">
+                <button id="btn-stats-apply-filter" class="btn btn-primary btn-sm btn-block">
+                    <i class="fas fa-sync-alt mr-1"></i> Lọc
+                </button>
+            </div>
+        </div>
+
+        <div class="mt-2 d-flex justify-content-between align-items-center">
+            <div id="stats-alert" class="alert alert-danger d-none mb-0 py-1 px-2 small" role="alert"></div>
+            <div class="small text-muted">
+                Khoảng thời gian hiện tại:
+                <span class="font-weight-bold" id="stats-filter-label">...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Row: cards -->
+<div class="row">
+
+    <!-- Doanh thu Premium -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-danger shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                            Doanh thu Premium
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="stat-revenue-total">0 đ</div>
+                        <div class="mt-1 small text-muted" id="stat-revenue-payments">0 giao dịch</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-coins fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Premium accounts -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Tài khoản Premium
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="stat-premium-current">0</div>
+                        <div class="mt-1 small text-muted" id="stat-premium-new">0 mới trong kỳ</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-crown fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lượt xem -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Lượt xem & thời lượng
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="stat-views-total">0</div>
+                        <div class="mt-1 small text-muted" id="stat-watchtime-total">0h xem</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-play-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bình luận -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-secondary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">
+                            Bình luận
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="stat-comments-total">0</div>
+                        <div class="mt-1 small text-muted" id="stat-comments-new">0 mới trong kỳ</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-comments fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Row: Charts -->
+<div class="row">
+    <!-- Doanh thu theo thời gian -->
+    <div class="col-xl-6 col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Doanh thu Premium theo thời gian</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-area" style="height: 320px;">
+                    <canvas id="statsRevenueChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top phim -->
+    <div class="col-xl-6 col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Top 10 phim trong kỳ</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-area" style="height: 320px;">
+                    <canvas id="statsTopFilmsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Row: Bảng thống kê phim -->
+<div class="row">
+    <div class="col-lg-12 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Thống kê chi tiết phim</h6>
+                <div class="form-inline">
+                    <label class="mr-2 small text-muted">Sort theo:</label>
+                    <select id="stats-film-sortBy" class="form-control form-control-sm mr-2">
+                        <option value="views">Lượt xem</option>
+                        <option value="total_watch_seconds">Thời lượng xem</option>
+                        <option value="favorites">Yêu thích</option>
+                        <option value="avg_rating">Điểm rating</option>
+                        <option value="comments">Bình luận</option>
+                    </select>
+                    <select id="stats-film-order" class="form-control form-control-sm">
+                        <option value="desc">Giảm dần</option>
+                        <option value="asc">Tăng dần</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body">
+
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover table-sm" width="100%">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Phim</th>
+                                <th>Loại</th>
+                                <th>Premium</th>
+                                <th>Quốc gia</th>
+                                <th>Năm</th>
+                                <th>Thể loại</th>
+                                <th class="text-right">Lượt xem</th>
+                                <th class="text-right">Thời lượng xem</th>
+                                <th class="text-right">Yêu thích</th>
+                                <th class="text-right">Rating</th>
+                                <th class="text-right">Bình luận</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stats-film-tbody">
+                            <!-- JS render -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <div id="stats-film-summary" class="small text-muted">
+                        <!-- trang X/Y -->
+                    </div>
+                    <div>
+                        <button class="btn btn-outline-secondary btn-sm" id="stats-film-prev">&laquo;</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="stats-film-next">&raquo;</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
