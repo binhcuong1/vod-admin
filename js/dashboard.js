@@ -231,7 +231,7 @@
             console.error("[dashboard] loadRevenueTrend error:", err);
         }
     }
-
+    
     // ============================
     // INIT
     // ============================
